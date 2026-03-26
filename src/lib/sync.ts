@@ -3,6 +3,22 @@ import type { AppSettings, Category, Flashcard } from '@/types/flashcard';
 
 const CLOUD_PREFS_KEY = 'flashcardCloudData';
 
+/**
+ * DEDUPLICATION STRATEGY:
+ * 
+ * 1. APP LEVEL:
+ *    - dedupeByLatest in useFlashcardSync ensures only one version of each item (by ID) is kept
+ *    - Items are merged by selecting the version with the latest updatedAt timestamp
+ * 
+ * 2. STORAGE LEVEL (Appwrite):
+ *    - File IDs are card IDs - uploading with same ID replaces the file
+ *    - Existing files are deleted before upload to avoid duplicates
+ * 
+ * 3. PULL LEVEL:
+ *    - Only cards/categories not in local storage are pulled
+ *    - Cloud documents are filtered by userId for multi-user support
+ */
+
 export interface CloudSnapshot {
   version: 1;
   updatedAt: number;
@@ -129,6 +145,9 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
 };
 
 // Helper function to upload image to storage and get file ID
+// Helper to upload or replace image in storage
+// Uses card ID as file ID, so re-uploading replaces the existing file
+// Prevents duplicate files for the same card
 const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<string | null> => {
   try {
     // Skip if imageUrl is not a data URL (already uploaded or external)
@@ -154,11 +173,22 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
       return null;
     }
 
+    // Try to remove existing file first to avoid duplicates
+    try {
+      await storage.deleteFile(BUCKET_ID, cardId);
+    } catch {
+      // File doesn't exist yet, that's fine
+    }
+
     // Upload to Appwrite Storage
     const file = await storage.createFile(BUCKET_ID, cardId, blob);
     return file.$id;
   } catch (error) {
     console.warn(`Failed to upload image for card ${cardId}:`, error);
+    // If file already exists due to race condition, return the cardId as fileId
+    if ((error as any)?.message?.includes('already exists')) {
+      return cardId;
+    }
     return null;
   }
 };
@@ -258,7 +288,8 @@ export async function pullSnapshotFromCloud(
     const user = await account.get();
     const userId = user.$id;
 
-    // Create sets of existing local IDs for quick lookup
+    // Create sets of existing local IDs for quick deduplication lookup
+    // This prevents pulling cards/categories that already exist locally
     const localCardIds = new Set(localCards.map((card) => card.id));
     const localCategoryIds = new Set(localCategories.map((cat) => cat.id));
 
