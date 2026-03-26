@@ -996,7 +996,7 @@ export function SettingsPage({
                     <div>
                       <p className="font-bold text-sm">Cloud Sync</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Push sends only pending local changes. Pull merges cloud + local using latest update wins.
+                        Push sends only pending changes (skips duplicates by name). Pull fetches cards & categories not in app locally by name.
                       </p>
                     </div>
 
