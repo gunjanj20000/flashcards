@@ -330,8 +330,16 @@ export async function pullSnapshotFromCloud(
     const localCategoryIds = new Set(localCategories.map((cat) => cat.id));
     
     // Also create name-based sets to prevent pulling duplicates by name
-    const localCardNames = new Set(localCards.map((card) => card.word.toLowerCase()));
-    const localCategoryNames = new Set(localCategories.map((cat) => cat.name.toLowerCase()));
+    // Normalize: trim whitespace and lowercase to catch variations
+    const localCardNames = new Set(
+      localCards.map((card) => card.word.trim().toLowerCase())
+    );
+    const localCategoryNames = new Set(
+      localCategories.map((cat) => cat.name.trim().toLowerCase())
+    );
+
+    console.log('[PULL] Local categories:', Array.from(localCategoryNames));
+    console.log('[PULL] Local cards:', Array.from(localCardNames).slice(0, 10));
 
     // Try to pull from database first
     const cardsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.cards);
@@ -342,8 +350,15 @@ export async function pullSnapshotFromCloud(
       cardsResponse.documents
         .filter((doc) => {
           const hasId = localCardIds.has(doc.$id);
-          const hasName = localCardNames.has(String(doc.word || '').toLowerCase());
+          // Normalize cloud word: trim and lowercase before comparing
+          const cloudCardWord = String(doc.word || '').trim().toLowerCase();
+          const hasName = localCardNames.has(cloudCardWord);
           const isUserCard = doc.userId === userId;
+          
+          if (isUserCard && !hasId && hasName) {
+            console.log(`[PULL] Skipping card "${doc.word}" - already exists locally`);
+          }
+          
           return isUserCard && !hasId && !hasName;
         })
         .map((doc) => ({
@@ -358,8 +373,15 @@ export async function pullSnapshotFromCloud(
       categoriesResponse.documents
         .filter((doc) => {
           const hasId = localCategoryIds.has(doc.$id);
-          const hasName = localCategoryNames.has(String(doc.name || '').toLowerCase());
+          // Normalize cloud name: trim and lowercase before comparing
+          const cloudCatName = String(doc.name || '').trim().toLowerCase();
+          const hasName = localCategoryNames.has(cloudCatName);
           const isUserCategory = doc.userId === userId;
+          
+          if (isUserCategory && !hasId && hasName) {
+            console.log(`[PULL] Skipping category "${doc.name}" - already exists locally`);
+          }
+          
           return isUserCategory && !hasId && !hasName;
         })
         .map((doc) => ({
