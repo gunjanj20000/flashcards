@@ -109,10 +109,10 @@ export function SettingsPage({
   const [editCategoryColor, setEditCategoryColor] = useState<Category['color']>('coral');
 
   const handleAddCard = () => {
-    if (newCardWord.trim() && newCardImage.trim() && newCardCategory) {
+    if (newCardWord.trim() && newCardImageBlob && newCardCategory) {
       onAddCard({
         word: newCardWord.trim(),
-        imageUrl: newCardImage.trim(),
+        imageUrl: 'pending', // Placeholder - will be updated after cloud sync
         categoryId: newCardCategory,
       }, newCardImageBlob || undefined);
       setNewCardWord('');
@@ -130,14 +130,19 @@ export function SettingsPage({
   };
 
   const handleSaveEditCard = () => {
-    if (editingCardId && editCardWord.trim() && editCardImage.trim()) {
-      onUpdateCard(editingCardId, {
-        word: editCardWord.trim(),
-        imageUrl: editCardImage.trim(),
-        categoryId: editCardCategory,
-      }, editCardImageBlob || undefined);
-      setEditingCardId(null);
-    }
+    if (!editingCardId || !editCardWord.trim()) return;
+    
+    // If a new image was uploaded, use pending; otherwise keep existing imageUrl
+    const imageUrl = editCardImageBlob ? 'pending' : editCardImage;
+    
+    if (!imageUrl.trim()) return; // Must have an image (either existing or new)
+    
+    onUpdateCard(editingCardId, {
+      word: editCardWord.trim(),
+      imageUrl,
+      categoryId: editCardCategory,
+    }, editCardImageBlob || undefined);
+    setEditingCardId(null);
   };
 
   const handleCancelEditCard = () => {
