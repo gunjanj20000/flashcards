@@ -111,13 +111,27 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
 const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<string | null> => {
   try {
     // Skip if imageUrl is not a data URL (already uploaded or external)
-    if (!imageUrl.startsWith('data:')) {
+    if (!imageUrl || !imageUrl.startsWith('data:')) {
       return null;
     }
 
     // Convert data URL to blob
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
+    let blob: Blob;
+    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        console.warn(`Failed to fetch image for card ${cardId}: ${response.statusText}`);
+        return null;
+      }
+      blob = await response.blob();
+      
+      if (!blob || blob.size === 0) {
+        console.warn(`Empty blob for card ${cardId}`);
+        return null;
+      }
+    } else {
+      return null;
+    }
 
     // Upload to Appwrite Storage
     const file = await storage.createFile(BUCKET_ID, cardId, blob);
@@ -136,16 +150,33 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
 
     // Push cards to database
     for (const card of snapshot.cards) {
-      // Upload image to storage if it's a data URL
+      // Handle imageUrl - upload data URLs, keep external URLs
       let imageFileId: string | null = null;
-      let imageUrl = card.imageUrl;
+      let imageUrl = '';
+      
+      if (!card.imageUrl) {
+        console.warn(`Skipping card ${card.id}: missing imageUrl`);
+        continue;
+      }
       
       if (card.imageUrl.startsWith('data:')) {
+        // Try to upload data URL to storage
         imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
-        // Construct URL from fileId if upload succeeded
         if (imageFileId) {
+          // Use storage URL after successful upload
           imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
+        } else {
+          // Upload failed - use a placeholder or skip
+          console.warn(`Failed to upload image for card ${card.id}, using placeholder`);
+          imageUrl = `cards/${card.id}`;
         }
+      } else if (card.imageUrl.length < 200000) {
+        // External URL, use as-is
+        imageUrl = card.imageUrl;
+      } else {
+        // URL too long, use placeholder
+        console.warn(`Image URL too long for card ${card.id}, using placeholder`);
+        imageUrl = `cards/${card.id}`;
       }
       
       await databases.createDocument(
