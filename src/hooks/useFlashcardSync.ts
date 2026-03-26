@@ -143,6 +143,13 @@ export function useFlashcardSync() {
         storage.getDeletedEntityIds(),
       ]);
 
+      console.log('[syncToCloud] Local data fetched:', {
+        allCards: cards.length,
+        allCategories: categories.length,
+        pendingCards: pendingCards.length,
+        pendingCategories: pendingCategories.length,
+      });
+
       // Then pull from cloud with local data to avoid duplicates
       const cloudSnapshot = await pullSnapshotFromCloud(cards, categories);
 
@@ -162,6 +169,11 @@ export function useFlashcardSync() {
       const cleanedCloudCategories = mergedCloudCategories.filter(
         (category) => !deletedCategoryIdSet.has(category.id)
       );
+
+      console.log('[syncToCloud] About to push:', {
+        cleanedCardCount: cleanedCloudCards.length,
+        cleanedCategoryCount: cleanedCloudCategories.length,
+      });
 
       const now = Date.now();
       await pushSnapshotToCloud({

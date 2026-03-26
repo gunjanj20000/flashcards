@@ -155,23 +155,28 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
 // Prevents duplicate files for the same card
 const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<string | null> => {
   try {
+    console.log(`[uploadImageToStorage] Starting upload for card ${cardId}`);
+    
     // Skip if imageUrl is not a data URL (already uploaded or external)
     if (!imageUrl || !imageUrl.startsWith('data:')) {
+      console.log(`[uploadImageToStorage] Skipping: not a data URL`);
       return null;
     }
 
     // Convert data URL to blob
     let blob: Blob;
     if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
+      console.log(`[uploadImageToStorage] Fetching data URL for card ${cardId}`);
       const response = await fetch(imageUrl);
       if (!response.ok) {
-        console.warn(`Failed to fetch image for card ${cardId}: ${response.statusText}`);
+        console.warn(`[uploadImageToStorage] Failed to fetch image for card ${cardId}: ${response.statusText}`);
         return null;
       }
       blob = await response.blob();
+      console.log(`[uploadImageToStorage] Blob size for card ${cardId}: ${blob.size} bytes`);
       
       if (!blob || blob.size === 0) {
-        console.warn(`Empty blob for card ${cardId}`);
+        console.warn(`[uploadImageToStorage] Empty blob for card ${cardId}`);
         return null;
       }
     } else {
@@ -180,18 +185,24 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
 
     // Try to remove existing file first to avoid duplicates
     try {
+      console.log(`[uploadImageToStorage] Deleting existing file for card ${cardId}`);
       await storage.deleteFile(BUCKET_ID, cardId);
-    } catch {
+      console.log(`[uploadImageToStorage] Deleted existing file for card ${cardId}`);
+    } catch (e) {
       // File doesn't exist yet, that's fine
+      console.log(`[uploadImageToStorage] No existing file to delete for card ${cardId}`);
     }
 
     // Upload to Appwrite Storage
+    console.log(`[uploadImageToStorage] Creating file in storage for card ${cardId}`);
     const file = await storage.createFile(BUCKET_ID, cardId, blob);
+    console.log(`[uploadImageToStorage] File created successfully: ${file.$id}`);
     return file.$id;
   } catch (error) {
-    console.warn(`Failed to upload image for card ${cardId}:`, error);
+    console.warn(`[uploadImageToStorage] Failed to upload image for card ${cardId}:`, error);
     // If file already exists due to race condition, return the cardId as fileId
     if ((error as any)?.message?.includes('already exists')) {
+      console.log(`[uploadImageToStorage] File already exists, returning cardId as fileId`);
       return cardId;
     }
     return null;
@@ -200,6 +211,9 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
 
 export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void> {
   try {
+    console.log('=== PUSH START ===');
+    console.log(`Cards to push: ${snapshot.cards.length}, Categories to push: ${snapshot.categories.length}`);
+    
     // Get current user ID
     const user = await account.get();
     const userId = user.$id;
@@ -219,13 +233,17 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
       existingCategories.documents
         .filter((doc) => doc.userId === userId)
         .forEach((doc) => existingCategoryNames.add(String(doc.name || '').toLowerCase()));
+      
+      console.log(`Existing cloud cards: ${existingCardNames.size}, categories: ${existingCategoryNames.size}`);
     } catch (error) {
       console.warn('Could not fetch existing cloud data for deduplication:', error);
       // Continue anyway - deduplication is a safeguard, not blocking
     }
 
+    let pushedCardCount = 0;
     // Push cards to database
     for (const card of snapshot.cards) {
+      console.log(`Processing card: "${card.word}" (id: ${card.id}), imageUrl: ${card.imageUrl?.substring(0, 50)}...`);
       try {
         // Skip if card with same name already exists in cloud
         if (existingCardNames.has(card.word.toLowerCase())) {
@@ -237,19 +255,26 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         let imageFileId: string | null = null;
         let imageUrl = 'image'; // Default placeholder
         
+        console.log(`Attempting image upload for card "${card.word}", has data URL: ${card.imageUrl?.startsWith('data:') ?? false}`);
         // Try to upload data URL to storage
         if (card.imageUrl && card.imageUrl.startsWith('data:')) {
           imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
+          console.log(`Image upload result for "${card.word}": fileId=${imageFileId}`);
         }
         
         // Set imageUrl: use original if it's not a data URL and fits, else use placeholder
         if (card.imageUrl && !card.imageUrl.startsWith('data:') && card.imageUrl.length < 200000) {
           imageUrl = card.imageUrl;
+          console.log(`Using stored image URL for "${card.word}"`);
         } else if (imageFileId) {
           imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
+          console.log(`Using storage preview URL for "${card.word}"`);
+        } else {
+          console.log(`Using placeholder imageUrl for "${card.word}"`);
         }
         // else: keep default 'image' placeholder
         
+        console.log(`Creating/updating card document for "${card.word}"`);
         await createOrUpdateDocument(
           DATABASE_ID,
           COLLECTION_IDS.cards,
@@ -265,10 +290,14 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
             syncStatus: card.syncStatus,
           }
         );
+        pushedCardCount++;
+        console.log(`Successfully pushed card: "${card.word}" (total: ${pushedCardCount})`);
       } catch (error) {
         console.error(`Failed to sync card ${card.id}:`, error);
       }
     }
+    
+    console.log(`=== PUSH COMPLETE: ${pushedCardCount} cards pushed ===`);
 
     // Push categories to database
     for (const category of snapshot.categories) {
