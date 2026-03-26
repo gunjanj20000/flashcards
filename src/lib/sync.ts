@@ -150,45 +150,34 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
 
     // Push cards to database
     for (const card of snapshot.cards) {
-      // Handle imageUrl - upload data URLs, keep external URLs
-      let imageFileId: string | null = null;
-      let imageUrl = '';
-      
-      if (!card.imageUrl) {
-        console.warn(`Skipping card ${card.id}: missing imageUrl`);
-        continue;
-      }
-      
-      if (card.imageUrl.startsWith('data:')) {
+      try {
+        // Handle imageUrl and imageFileId
+        let imageFileId: string | null = null;
+        let imageUrl = 'image'; // Default placeholder
+        
         // Try to upload data URL to storage
-        imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
-        if (imageFileId) {
-          // Use storage URL after successful upload
-          imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
-        } else {
-          // Upload failed - use a placeholder or skip
-          console.warn(`Failed to upload image for card ${card.id}, using placeholder`);
-          imageUrl = `cards/${card.id}`;
+        if (card.imageUrl && card.imageUrl.startsWith('data:')) {
+          imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
         }
-      } else if (card.imageUrl.length < 200000) {
-        // External URL, use as-is
-        imageUrl = card.imageUrl;
-      } else {
-        // URL too long, use placeholder
-        console.warn(`Image URL too long for card ${card.id}, using placeholder`);
-        imageUrl = `cards/${card.id}`;
-      }
-      
-      await databases.createDocument(
-        DATABASE_ID,
-        COLLECTION_IDS.cards,
-        card.id,
-        {
-          userId,
-          word: card.word,
-          imageUrl, // Always include imageUrl (required field)
-          imageFileId: imageFileId || undefined,
-          categoryId: card.categoryId,
+        
+        // Set imageUrl: use original if it's not a data URL and fits, else use placeholder
+        if (card.imageUrl && !card.imageUrl.startsWith('data:') && card.imageUrl.length < 200000) {
+          imageUrl = card.imageUrl;
+        } else if (imageFileId) {
+          imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
+        }
+        // else: keep default 'image' placeholder
+        
+        await databases.createDocument(
+          DATABASE_ID,
+          COLLECTION_IDS.cards,
+          card.id,
+          {
+            userId,
+            word: card.word,
+            imageUrl, // Always included (required field)
+            imageFileId: imageFileId || undefined,
+            categoryId: card.categoryId,
           createdAt: card.createdAt,
           updatedAt: card.updatedAt,
           syncStatus: card.syncStatus,
