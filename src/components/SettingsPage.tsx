@@ -19,7 +19,6 @@ import {
 import { toast } from 'sonner';
 import { ID } from 'appwrite';
 import { account } from '@/lib/appwrite';
-import { setupAppwriteSchema } from '@/lib/appwrite-schema-setup';
 import type { Category, Flashcard, AppSettings } from '@/types/flashcard';
 
 interface SettingsPageProps {
@@ -81,7 +80,6 @@ export function SettingsPage({
   const [isPullConfirmOpen, setIsPullConfirmOpen] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [isSetupBusy, setIsSetupBusy] = useState(false);
 
   // New card form state
   const [newCardWord, setNewCardWord] = useState('');
@@ -395,18 +393,7 @@ export function SettingsPage({
     }
   };
 
-  const handleSetupSchema = async () => {
-    setIsSetupBusy(true);
-    try {
-      await setupAppwriteSchema();
-      toast.success('Appwrite schema created successfully! Collections and storage ready for database sync.');
-    } catch (error) {
-      console.error('Schema setup failed:', error);
-      toast.error('Schema setup failed. Check console for details.');
-    } finally {
-      setIsSetupBusy(false);
-    }
-  };
+
 
   return (
     <div className="h-[100dvh] bg-background p-4 pb-4 overflow-hidden flex flex-col">
@@ -1026,22 +1013,13 @@ export function SettingsPage({
                     </div>
                   </Card>
 
-                  <Card className="p-4 rounded-2xl space-y-3">
-                    <div>
-                      <p className="font-bold text-sm">Database Schema Setup</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Creates Appwrite collections and storage for syncing across devices. Run once to provision.
-                      </p>
-                    </div>
-                    <Button
-                      onClick={handleSetupSchema}
-                      disabled={isSetupBusy || isAuthLoading || isManualSyncBusy || syncState.isSyncing}
-                      variant="outline"
-                      className="w-full h-11 rounded-xl font-semibold"
-                    >
-                      {isSetupBusy ? 'Setting up...' : 'Setup Schema'}
-                    </Button>
-                  </Card>
+                  <Button
+                    onClick={() => window.open('https://sgp.cloud.appwrite.io', '_blank')}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl font-semibold mt-4"
+                  >
+                    Open Appwrite Console
+                  </Button>
                 </>
               ) : (
                 <>

@@ -133,15 +133,18 @@ export function useFlashcardSync() {
       await account.get();
       setIsAuthenticated(true);
 
-      const [cards, categories, settings, pendingCards, pendingCategories, deletedEntityIds, cloudSnapshot] = await Promise.all([
+      // Fetch local data first
+      const [cards, categories, settings, pendingCards, pendingCategories, deletedEntityIds] = await Promise.all([
         storage.getAllCards(),
         storage.getAllCategories(),
         storage.getSettings(),
         storage.getPendingCards(),
         storage.getPendingCategories(),
         storage.getDeletedEntityIds(),
-        pullSnapshotFromCloud(),
       ]);
+
+      // Then pull from cloud with local data to avoid duplicates
+      const cloudSnapshot = await pullSnapshotFromCloud(cards, categories);
 
       const cloudCards = dedupeByLatest(cloudSnapshot?.cards ?? []);
       const cloudCategories = dedupeByLatest(cloudSnapshot?.categories ?? []);
@@ -228,7 +231,14 @@ export function useFlashcardSync() {
       await account.get();
       setIsAuthenticated(true);
 
-      const snapshot = await pullSnapshotFromCloud();
+      const [localCards, localCategories, localSettings, deletedEntityIds] = await Promise.all([
+        storage.getAllCards(),
+        storage.getAllCategories(),
+        storage.getSettings(),
+        storage.getDeletedEntityIds(),
+      ]);
+
+      const snapshot = await pullSnapshotFromCloud(localCards, localCategories);
       if (!snapshot) {
         setSyncState((prev) => ({ ...prev, isSyncing: false }));
         return {
@@ -236,13 +246,6 @@ export function useFlashcardSync() {
           error: 'No cloud backup found for this account.',
         };
       }
-
-      const [localCards, localCategories, localSettings, deletedEntityIds] = await Promise.all([
-        storage.getAllCards(),
-        storage.getAllCategories(),
-        storage.getSettings(),
-        storage.getDeletedEntityIds(),
-      ]);
 
       const dedupedLocalCards = dedupeByLatest(localCards);
       const dedupedLocalCategories = dedupeByLatest(localCategories);

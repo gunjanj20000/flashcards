@@ -153,19 +153,27 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
   }
 }
 
-export async function pullSnapshotFromCloud(): Promise<CloudSnapshot | null> {
+export async function pullSnapshotFromCloud(
+  localCards: Flashcard[] = [],
+  localCategories: Category[] = []
+): Promise<CloudSnapshot | null> {
   try {
     // Get current user ID for filtering
     const user = await account.get();
     const userId = user.$id;
 
+    // Create sets of existing local IDs for quick lookup
+    const localCardIds = new Set(localCards.map((card) => card.id));
+    const localCategoryIds = new Set(localCategories.map((cat) => cat.id));
+
     // Try to pull from database first
     const cardsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.cards);
     const categoriesResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.categories);
 
+    // Filter to only cards and categories not available locally
     const cards = normalizeCards(
       cardsResponse.documents
-        .filter((doc) => doc.userId === userId)
+        .filter((doc) => doc.userId === userId && !localCardIds.has(doc.$id))
         .map((doc) => ({
           id: doc.$id,
           ...doc,
@@ -174,7 +182,7 @@ export async function pullSnapshotFromCloud(): Promise<CloudSnapshot | null> {
 
     const categories = normalizeCategories(
       categoriesResponse.documents
-        .filter((doc) => doc.userId === userId)
+        .filter((doc) => doc.userId === userId && !localCategoryIds.has(doc.$id))
         .map((doc) => ({
           id: doc.$id,
           ...doc,
