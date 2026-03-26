@@ -244,6 +244,8 @@ const uploadImageToStorage = async (
     console.log(`[uploadImageToStorage] Starting upload for card ${cardId}`);
 
     let blob = blobCache?.get(cardId);
+    console.log(`[uploadImageToStorage] Got blob from cache: ${blob ? `${blob.size} bytes` : 'null'}`);
+    
     if (!blob) {
       console.log(`[uploadImageToStorage] No blob found for ${cardId}`);
       return null;
@@ -255,6 +257,7 @@ const uploadImageToStorage = async (
     }
 
     // Compress image if needed
+    console.log(`[uploadImageToStorage] Compressing image for ${cardId}...`);
     blob = await compressImage(blob, 500000); // Max 500KB
     console.log(`[uploadImageToStorage] Final blob size for card ${cardId}: ${blob.size} bytes`);
 
@@ -271,10 +274,10 @@ const uploadImageToStorage = async (
     // Upload to Appwrite Storage
     console.log(`[uploadImageToStorage] Creating file in storage for card ${cardId}`);
     const file = await storage.createFile(BUCKET_ID, cardId, blob);
-    console.log(`[uploadImageToStorage] File created successfully: ${file.$id}`);
+    console.log(`[uploadImageToStorage] ✅ File created successfully: ${file.$id}`);
     return file.$id;
   } catch (error) {
-    console.warn(`[uploadImageToStorage] Failed to upload image for card ${cardId}:`, error);
+    console.warn(`[uploadImageToStorage] ❌ Failed to upload image for card ${cardId}:`, error);
     // If file already exists due to race condition, return the cardId as fileId
     if ((error as any)?.message?.includes('already exists')) {
       console.log(`[uploadImageToStorage] File already exists, returning cardId as fileId`);
@@ -337,11 +340,19 @@ export async function pushSnapshotToCloud(
           console.log('Skipping upload - already exists');
         }
         
-        console.log(`Attempting image upload for card "${card.word}"`);
+        console.log(`Attempting image upload for card "${card.word}" (id: ${card.id})`);
+        console.log(`  imageFileId exists: ${!!card.imageFileId}`);
+        console.log(`  blobCache exists: ${!!blobCache}`);
+        console.log(`  blobCache size: ${blobCache?.size ?? 0}`);
+        console.log(`  card in cache: ${blobCache?.has(card.id) ?? false}`);
+        
         // ONLY rely on blob cache (correct approach)
         if (!card.imageFileId && blobCache?.has(card.id)) {
+          console.log(`  ✅ Uploading image for card "${card.word}"`);
           imageFileId = await uploadImageToStorage(card.id, blobCache);
           console.log(`Image upload result for "${card.word}": fileId=${imageFileId}`);
+        } else {
+          console.log(`  ❌ Upload skipped - imageFileId=${card.imageFileId}, has blob=${blobCache?.has(card.id)}`);
         }
 
         if (imageFileId) {

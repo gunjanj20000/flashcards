@@ -156,7 +156,10 @@ export function useFlashcardSync() {
 
       const cloudCards = dedupeByLatest(cloudSnapshot?.cards ?? []);
       const cloudCategories = dedupeByLatest(cloudSnapshot?.categories ?? []);
-      const cardsToApply = dedupeByLatest(pendingCards);
+      const cardsToApply = dedupeByLatest([
+        ...pendingCards,
+        ...cards.filter((card) => !card.imageFileId),
+      ]);
       const categoriesToApply = dedupeByLatest(pendingCategories);
 
       const mergedCloudCards = mergeData(cloudCards, cardsToApply);
@@ -180,6 +183,11 @@ export function useFlashcardSync() {
       const storageBlobEntries = await Promise.all(
         cleanedCloudCards.map(async (card) => {
           const blob = await storage.getImage(card.id);
+          if (blob) {
+            console.log(`[syncToCloud] Loaded blob for card ${card.id} from storage: ${blob.size} bytes`);
+          } else {
+            console.log(`[syncToCloud] No blob found for card ${card.id}`);
+          }
           return blob ? ([card.id, blob] as const) : null;
         })
       );
@@ -189,6 +197,7 @@ export function useFlashcardSync() {
           pushBlobCache.set(entry[0], entry[1]);
         }
       }
+      console.log(`[syncToCloud] Blob cache for push has ${pushBlobCache.size} entries`);
 
       const now = Date.now();
       await pushSnapshotToCloud({
