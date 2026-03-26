@@ -1,0 +1,247 @@
+@import "@fontsource/nunito/400.css";
+@import "@fontsource/nunito/600.css";
+@import "@fontsource/nunito/700.css";
+@import "@fontsource/nunito/800.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Kid-Friendly Flashcard App Design System */
+
+@layer base {
+  :root {
+    --background: 45 100% 96%;
+    --foreground: 240 30% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 30% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 30% 20%;
+
+    --primary: 45 100% 55%;
+    --primary-foreground: 240 30% 15%;
+
+    --secondary: 160 60% 75%;
+    --secondary-foreground: 160 60% 20%;
+
+    --muted: 45 30% 90%;
+    --muted-foreground: 240 10% 45%;
+
+    --accent: 15 90% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 40% 85%;
+    --input: 45 40% 85%;
+    --ring: 45 100% 55%;
+
+    --radius: 1.25rem;
+
+    /* Custom kid-friendly colors */
+    --coral: 15 90% 65%;
+    --mint: 160 60% 70%;
+    --sky: 200 85% 65%;
+    --lavender: 270 60% 75%;
+    --sunshine: 45 100% 55%;
+    --peach: 25 100% 85%;
+    
+    /* Playful shadows */
+    --shadow-playful: 0 8px 30px -10px hsl(var(--primary) / 0.3);
+    --shadow-card: 0 12px 40px -15px hsl(240 30% 20% / 0.15);
+    --shadow-button: 0 6px 20px -8px hsl(var(--primary) / 0.4);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  :root[data-theme='sunshine'] {
+    --background: 45 100% 96%;
+    --foreground: 240 30% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 30% 20%;
+    --primary: 45 100% 55%;
+    --primary-foreground: 240 30% 15%;
+    --secondary: 160 60% 75%;
+    --secondary-foreground: 160 60% 20%;
+    --muted: 45 30% 90%;
+    --muted-foreground: 240 10% 45%;
+    --accent: 15 90% 65%;
+    --accent-foreground: 0 0% 100%;
+    --border: 45 40% 85%;
+    --input: 45 40% 85%;
+    --ring: 45 100% 55%;
+  }
+
+  :root[data-theme='ocean'] {
+    --background: 195 100% 95%;
+    --foreground: 220 30% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 18%;
+    --primary: 202 95% 54%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 175 70% 70%;
+    --secondary-foreground: 175 55% 20%;
+    --muted: 193 40% 88%;
+    --muted-foreground: 220 14% 40%;
+    --accent: 280 85% 67%;
+    --accent-foreground: 0 0% 100%;
+    --border: 195 38% 82%;
+    --input: 195 38% 82%;
+    --ring: 202 95% 54%;
+  }
+
+  :root[data-theme='berry'] {
+    --background: 325 100% 96%;
+    --foreground: 252 30% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 252 30% 18%;
+    --primary: 332 92% 61%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 266 78% 76%;
+    --secondary-foreground: 266 55% 22%;
+    --muted: 318 38% 90%;
+    --muted-foreground: 252 12% 42%;
+    --accent: 22 95% 61%;
+    --accent-foreground: 0 0% 100%;
+    --border: 320 35% 83%;
+    --input: 320 35% 83%;
+    --ring: 332 92% 61%;
+  }
+
+  .dark {
+    --background: 240 20% 12%;
+    --foreground: 45 30% 95%;
+    --card: 240 20% 16%;
+    --card-foreground: 45 30% 95%;
+    --popover: 240 20% 16%;
+    --popover-foreground: 45 30% 95%;
+    --primary: 45 100% 55%;
+    --primary-foreground: 240 30% 15%;
+    --secondary: 160 40% 35%;
+    --secondary-foreground: 160 60% 90%;
+    --muted: 240 15% 25%;
+    --muted-foreground: 240 10% 65%;
+    --accent: 15 80% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 15% 25%;
+    --input: 240 15% 25%;
+    --ring: 45 100% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: "Nunito", system-ui, sans-serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 1180px) {
+  .flashcard-shell {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .flashcard-content {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .flashcard-image {
+    flex: 1.1;
+    min-height: 0;
+  }
+
+  .flashcard-word {
+    flex: 0.9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .flashcard-word h2 {
+    font-size: clamp(2rem, 5.6vw, 3.6rem);
+    line-height: 1.1;
+  }
+}
+
+@layer utilities {
+  @keyframes icon-jiggle {
+    0% {
+      transform: rotate(-1.2deg);
+    }
+    50% {
+      transform: rotate(1.2deg);
+    }
+    100% {
+      transform: rotate(-1.2deg);
+    }
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .icon-jiggle {
+    animation: icon-jiggle 0.18s ease-in-out infinite;
+    transform-origin: center;
+  }
+  
+  .touch-target {
+    @apply min-h-[48px] min-w-[48px];
+  }
+
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
+
+  .button-shadow {
+    box-shadow: var(--shadow-button);
+  }
+
+  .playful-shadow {
+    box-shadow: var(--shadow-playful);
+  }
+}
