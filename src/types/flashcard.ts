@@ -2,6 +2,7 @@ export interface Flashcard {
   id: string;
   word: string;
   imageUrl: string;
+  imageFileId?: string; // Appwrite Storage file ID
   categoryId: string;
   createdAt?: number;
   updatedAt?: number;

@@ -1,4 +1,4 @@
-import { account, databases, DATABASE_ID, COLLECTION_IDS } from '@/lib/appwrite';
+import { account, databases, storage, DATABASE_ID, COLLECTION_IDS, BUCKET_ID, APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } from '@/lib/appwrite';
 import type { AppSettings, Category, Flashcard } from '@/types/flashcard';
 
 const CLOUD_PREFS_KEY = 'flashcardCloudData';
@@ -14,21 +14,35 @@ export interface CloudSnapshot {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const normalizeCards = (raw: unknown): Flashcard[] => {
+// Helper function to get image URL from storage
+const getImageUrlFromStorage = (fileId: string, projectId: string, endpointUrl: string): string => {
+  return `${endpointUrl}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${projectId}&width=200&height=200&gravity=center`;
+};
+
+const normalizeCards = (raw: unknown, projectId?: string, endpointUrl?: string): Flashcard[] => {
   if (!Array.isArray(raw)) return [];
 
   return raw
     .filter((item): item is Record<string, unknown> => isRecord(item))
-    .map((item) => ({
-      id: String(item.id ?? ''),
-      word: String(item.word ?? ''),
-      imageUrl: String(item.imageUrl ?? ''),
-      categoryId: String(item.categoryId ?? ''),
-      createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
-      updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now(),
-      syncStatus: 'synced' as const,
-    }))
-    .filter((card) => card.id && card.word && card.imageUrl && card.categoryId);
+    .map((item) => {
+      // Reconstruct imageUrl from fileId if present
+      let imageUrl = String(item.imageUrl ?? '');
+      if (!imageUrl && item.imageFileId && projectId && endpointUrl) {
+        imageUrl = getImageUrlFromStorage(String(item.imageFileId), projectId, endpointUrl);
+      }
+      
+      return {
+        id: String(item.id ?? ''),
+        word: String(item.word ?? ''),
+        imageUrl,
+        imageFileId: item.imageFileId ? String(item.imageFileId) : undefined,
+        categoryId: String(item.categoryId ?? ''),
+        createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
+        updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now(),
+        syncStatus: 'synced' as const,
+      };
+    })
+    .filter((card) => card.id && card.word && card.categoryId && (card.imageUrl || card.imageFileId));
 };
 
 const normalizeCategories = (raw: unknown): Category[] => {
@@ -93,6 +107,32 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
   };
 };
 
+// Helper function to upload image to storage and get file ID
+const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<string | null> => {
+  try {
+    // Skip if imageUrl is not a data URL (already uploaded or external)
+    if (!imageUrl.startsWith('data:')) {
+      return null;
+    }
+
+    // Convert data URL to blob
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+
+    // Upload to Appwrite Storage
+    const file = await storage.createFile(BUCKET_ID, cardId, blob);
+    return file.$id;
+  } catch (error) {
+    console.warn(`Failed to upload image for card ${cardId}:`, error);
+    return null;
+  }
+};
+
+// Helper function to get image URL from storage
+const getImageUrlFromStorage = (fileId: string): string => {
+  return `${storage.config.endpoint}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${storage.config.project}&format=webp`;
+};
+
 export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void> {
   try {
     // Get current user ID
@@ -101,6 +141,9 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
 
     // Push cards to database
     for (const card of snapshot.cards) {
+      // Upload image to storage if it's a data URL
+      const imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
+      
       await databases.createDocument(
         DATABASE_ID,
         COLLECTION_IDS.cards,
@@ -108,7 +151,7 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         {
           userId,
           word: card.word,
-          imageUrl: card.imageUrl,
+          imageFileId: imageFileId || undefined,
           categoryId: card.categoryId,
           createdAt: card.createdAt,
           updatedAt: card.updatedAt,
@@ -177,7 +220,9 @@ export async function pullSnapshotFromCloud(
         .map((doc) => ({
           id: doc.$id,
           ...doc,
-        }))
+        })),
+      APPWRITE_PROJECT_ID,
+      APPWRITE_ENDPOINT
     );
 
     const categories = normalizeCategories(

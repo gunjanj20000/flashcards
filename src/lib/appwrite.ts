@@ -19,4 +19,8 @@ export const COLLECTION_IDS = {
 // Storage configuration
 export const BUCKET_ID = "card_images";
 
+// Appwrite configuration (for constructing URLs)
+export const APPWRITE_ENDPOINT = "https://sgp.cloud.appwrite.io/v1";
+export const APPWRITE_PROJECT_ID = "69c4cb210004f8c67249";
+
 export { client, account, databases, storage };
