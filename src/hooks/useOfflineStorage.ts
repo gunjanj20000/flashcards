@@ -101,26 +101,8 @@ const withStoreRecovery = async <T>(operation: () => Promise<T>): Promise<T> => 
  };
 
  const createDefaultCategories = (): Category[] => {
-   const now = Date.now();
-   const templates: Array<Pick<Category, 'name' | 'icon' | 'color'>> = [
-     { name: 'Animals', icon: '🐾', color: 'coral' },
-     { name: 'Colors', icon: '🎨', color: 'sky' },
-     { name: 'Numbers', icon: '🔢', color: 'mint' },
-     { name: 'Food', icon: '🍎', color: 'sunshine' },
-     { name: 'Shapes', icon: '⭐', color: 'lavender' },
-     { name: 'Nature', icon: '🌸', color: 'peach' },
-   ];
-
-   return templates.map((item, index) => ({
-     id: generateClientId('cat'),
-     name: item.name,
-     icon: item.icon,
-     color: item.color,
-     order: index,
-     createdAt: now + index,
-     updatedAt: now + index,
-     syncStatus: 'pending',
-   }));
+   // No default categories - users start with empty app
+   return [];
  };
  
  // Create separate stores for different data types
