@@ -150,6 +150,85 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
 };
 
 // Helper function to upload image to storage and get file ID
+// Helper to compress image blob to fit within Appwrite limits
+const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise<Blob> => {
+  // If already small enough, return as is
+  if (blob.size <= maxSizeBytes) {
+    console.log(`[compressImage] Blob is ${blob.size} bytes, no compression needed`);
+    return blob;
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let quality = 0.8;
+        let scale = 1;
+
+        const tryCompress = () => {
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            console.warn('[compressImage] Failed to get canvas context');
+            resolve(blob);
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          canvas.toBlob((compressedBlob) => {
+            if (!compressedBlob) {
+              console.warn('[compressImage] Failed to create blob from canvas');
+              resolve(blob);
+              return;
+            }
+
+            console.log(`[compressImage] Attempt: quality=${quality.toFixed(2)}, scale=${scale.toFixed(2)}, size=${compressedBlob.size} bytes`);
+            
+            if (compressedBlob.size <= maxSizeBytes) {
+              console.log(`[compressImage] Success! Compressed to ${compressedBlob.size} bytes (${Math.round(compressedBlob.size / 1024)}KB)`);
+              resolve(compressedBlob);
+              return;
+            }
+
+            // Try reducing quality first
+            if (quality > 0.1) {
+              quality -= 0.1;
+              tryCompress();
+            } 
+            // Then reduce dimensions
+            else if (scale > 0.3) {
+              scale -= 0.1;
+              quality = 0.8;
+              tryCompress();
+            } 
+            // Give up and use what we have
+            else {
+              console.warn(`[compressImage] Could not compress below ${maxSizeBytes} bytes, using best effort (${compressedBlob.size} bytes)`);
+              resolve(compressedBlob);
+            }
+          }, 'image/jpeg', quality);
+        };
+
+        tryCompress();
+      };
+      img.onerror = () => {
+        console.warn('[compressImage] Failed to load image from data URL');
+        resolve(blob);
+      };
+    };
+    reader.onerror = () => {
+      console.warn('[compressImage] Failed to read blob as data URL');
+      resolve(blob);
+    };
+  });
+};
+
 // Helper to upload or replace image in storage
 // Uses card ID as file ID, so re-uploading replaces the existing file
 // Prevents duplicate files for the same card
@@ -173,12 +252,16 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
         return null;
       }
       blob = await response.blob();
-      console.log(`[uploadImageToStorage] Blob size for card ${cardId}: ${blob.size} bytes`);
+      console.log(`[uploadImageToStorage] Original blob size for card ${cardId}: ${blob.size} bytes`);
       
       if (!blob || blob.size === 0) {
         console.warn(`[uploadImageToStorage] Empty blob for card ${cardId}`);
         return null;
       }
+
+      // Compress image if needed
+      blob = await compressImage(blob, 500000); // Max 500KB
+      console.log(`[uploadImageToStorage] Final blob size for card ${cardId}: ${blob.size} bytes`);
     } else {
       return null;
     }
