@@ -227,7 +227,7 @@ export function useFlashcards() {
     };
   }, [storage, sync]);
 
-  const addCard = useCallback(async (card: Omit<Flashcard, 'id'>) => {
+  const addCard = useCallback(async (card: Omit<Flashcard, 'id'>, imageBlob?: Blob) => {
     const now = Date.now();
     const newCard: Flashcard = {
       ...card,
@@ -236,6 +236,11 @@ export function useFlashcards() {
       updatedAt: now,
       syncStatus: 'pending',
     };
+    
+    // Store blob in cache if provided for efficient upload
+    if (imageBlob) {
+      sync.setCardImageBlob(newCard.id, imageBlob);
+    }
     
     const updatedCards = [...cards, newCard];
     setCards(updatedCards);
@@ -252,12 +257,18 @@ export function useFlashcards() {
     return newCard;
   }, [cards, storage, sync, scheduleCloudSync]);
 
-  const updateCard = useCallback(async (id: string, updates: Partial<Omit<Flashcard, 'id'>>) => {
+  const updateCard = useCallback(async (id: string, updates: Partial<Omit<Flashcard, 'id'>>, imageBlob?: Blob) => {
     const updatedCards = cards.map((card) =>
       card.id === id
         ? { ...card, ...updates, updatedAt: Date.now(), syncStatus: 'pending' as const }
         : card
     );
+    
+    // Store blob in cache if provided for efficient upload
+    if (imageBlob) {
+      sync.setCardImageBlob(id, imageBlob);
+    }
+    
     setCards(updatedCards);
     
     // Save to IndexedDB

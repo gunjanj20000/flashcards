@@ -32,6 +32,10 @@ export interface CloudSnapshot {
   settings: AppSettings;
 }
 
+// Blob cache to store actual blobs for images instead of base64 data URLs
+// This allows direct upload without conversion overhead
+export type BlobCache = Map<string, Blob>;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -232,19 +236,23 @@ const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise
 // Helper to upload or replace image in storage
 // Uses card ID as file ID, so re-uploading replaces the existing file
 // Prevents duplicate files for the same card
-const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<string | null> => {
+const uploadImageToStorage = async (
+  cardId: string,
+  imageUrl: string,
+  blobCache?: BlobCache
+): Promise<string | null> => {
   try {
     console.log(`[uploadImageToStorage] Starting upload for card ${cardId}`);
     
-    // Skip if imageUrl is not a data URL (already uploaded or external)
-    if (!imageUrl || !imageUrl.startsWith('data:')) {
-      console.log(`[uploadImageToStorage] Skipping: not a data URL`);
-      return null;
+    let blob: Blob | undefined;
+    
+    // First, try to get blob from cache (direct blob, no conversion needed)
+    if (blobCache && blobCache.has(cardId)) {
+      blob = blobCache.get(cardId);
+      console.log(`[uploadImageToStorage] Using cached blob for card ${cardId}: ${blob?.size} bytes`);
     }
-
-    // Convert data URL to blob
-    let blob: Blob;
-    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
+    // Otherwise, try to convert data URL to blob
+    else if (imageUrl && imageUrl.startsWith('data:')) {
       console.log(`[uploadImageToStorage] Fetching data URL for card ${cardId}`);
       const response = await fetch(imageUrl);
       if (!response.ok) {
@@ -252,19 +260,20 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
         return null;
       }
       blob = await response.blob();
-      console.log(`[uploadImageToStorage] Original blob size for card ${cardId}: ${blob.size} bytes`);
-      
-      if (!blob || blob.size === 0) {
-        console.warn(`[uploadImageToStorage] Empty blob for card ${cardId}`);
-        return null;
-      }
-
-      // Compress image if needed
-      blob = await compressImage(blob, 500000); // Max 500KB
-      console.log(`[uploadImageToStorage] Final blob size for card ${cardId}: ${blob.size} bytes`);
+      console.log(`[uploadImageToStorage] Converted base64 to blob for card ${cardId}: ${blob.size} bytes`);
     } else {
+      console.log(`[uploadImageToStorage] Skipping: not a data URL or cached blob`);
       return null;
     }
+
+    if (!blob || blob.size === 0) {
+      console.warn(`[uploadImageToStorage] Empty blob for card ${cardId}`);
+      return null;
+    }
+
+    // Compress image if needed
+    blob = await compressImage(blob, 500000); // Max 500KB
+    console.log(`[uploadImageToStorage] Final blob size for card ${cardId}: ${blob.size} bytes`);
 
     // Try to remove existing file first to avoid duplicates
     try {
@@ -292,7 +301,10 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
   }
 };
 
-export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void> {
+export async function pushSnapshotToCloud(
+  snapshot: CloudSnapshot,
+  blobCache?: BlobCache
+): Promise<void> {
   try {
     console.log('=== PUSH START ===');
     console.log(`Cards to push: ${snapshot.cards.length}, Categories to push: ${snapshot.categories.length}`);
@@ -339,9 +351,9 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         let imageUrl = 'image'; // Default placeholder
         
         console.log(`Attempting image upload for card "${card.word}", has data URL: ${card.imageUrl?.startsWith('data:') ?? false}`);
-        // Try to upload data URL to storage
-        if (card.imageUrl && card.imageUrl.startsWith('data:')) {
-          imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
+        // Try to upload data URL to storage (or use blob from cache)
+        if (card.imageUrl && (card.imageUrl.startsWith('data:') || blobCache?.has(card.id))) {
+          imageFileId = await uploadImageToStorage(card.id, card.imageUrl, blobCache);
           console.log(`Image upload result for "${card.word}": fileId=${imageFileId}`);
         }
         

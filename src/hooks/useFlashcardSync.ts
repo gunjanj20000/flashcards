@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { account } from '@/lib/appwrite';
-import { pullSnapshotFromCloud, pushSnapshotToCloud } from '@/lib/sync';
+import { pullSnapshotFromCloud, pushSnapshotToCloud, type BlobCache } from '@/lib/sync';
 import type { AppSettings, Category, Flashcard } from '@/types/flashcard';
 import type { SyncState } from '@/types/flashcard';
 import { useOfflineStorage } from './useOfflineStorage';
@@ -17,6 +17,7 @@ interface SyncResult {
 export function useFlashcardSync() {
   const storage = useOfflineStorage();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const blobCacheRef = useRef<BlobCache>(new Map());
   const [syncState, setSyncState] = useState<SyncState>({
     lastSyncedAt: null,
     isSyncing: false,
@@ -182,7 +183,7 @@ export function useFlashcardSync() {
         cards: cleanedCloudCards,
         categories: cleanedCloudCategories,
         settings,
-      });
+      }, blobCacheRef.current);
 
       const pushedCardIds = new Set(cardsToApply.map((card) => card.id));
       const pushedCategoryIds = new Set(categoriesToApply.map((category) => category.id));
@@ -340,12 +341,23 @@ export function useFlashcardSync() {
     return null;
   }, [storage]);
 
+  const setCardImageBlob = useCallback((cardId: string, blob: Blob) => {
+    blobCacheRef.current.set(cardId, blob);
+    console.log(`[useFlashcardSync] Cached blob for card ${cardId}: ${blob.size} bytes`);
+  }, []);
+
+  const clearCardImageBlob = useCallback((cardId: string) => {
+    blobCacheRef.current.delete(cardId);
+  }, []);
+
   return {
     syncState,
     syncToCloud,
     pullFromCloud,
     fullSync,
     uploadImage,
+    setCardImageBlob,
+    clearCardImageBlob,
     mergeData,
     updatePendingCount,
     isEnabled: ENABLE_CLOUD_SYNC && isAuthenticated,

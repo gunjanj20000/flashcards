@@ -20,7 +20,7 @@ interface CardViewerProps {
   cards: Flashcard[];
   settings: AppSettings;
   onBack: () => void;
-  onAddCard?: (card: Omit<Flashcard, 'id'>) => void;
+  onAddCard?: (card: Omit<Flashcard, 'id'>, imageBlob?: Blob) => void;
   allCategories?: Category[];
   onCategoryChange?: (category: Category) => void;
 }
@@ -31,6 +31,7 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardWord, setNewCardWord] = useState('');
   const [newCardImage, setNewCardImage] = useState('');
+  const [newCardImageBlob, setNewCardImageBlob] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { triggerHaptic } = useHaptics();
 
@@ -45,6 +46,9 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Store the blob directly for efficient upload
+      setNewCardImageBlob(file);
+      // Also store base64 for display and fallback
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewCardImage(reader.result as string);
@@ -60,9 +64,10 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
         word: newCardWord.trim(),
         imageUrl: newCardImage.trim(),
         categoryId: category.id,
-      });
+      }, newCardImageBlob || undefined);
       setNewCardWord('');
       setNewCardImage('');
+      setNewCardImageBlob(null);
       setIsAddingCard(false);
       toast.success('Card added successfully!');
     }

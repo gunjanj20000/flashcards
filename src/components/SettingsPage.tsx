@@ -26,8 +26,8 @@ interface SettingsPageProps {
   cards: Flashcard[];
   settings: AppSettings;
   onUpdateSettings: (updates: Partial<AppSettings>) => void;
-  onAddCard: (card: Omit<Flashcard, 'id'>) => void;
-  onUpdateCard: (id: string, updates: Partial<Omit<Flashcard, 'id'>>) => void;
+  onAddCard: (card: Omit<Flashcard, 'id'>, imageBlob?: Blob) => void;
+  onUpdateCard: (id: string, updates: Partial<Omit<Flashcard, 'id'>>, imageBlob?: Blob) => void;
   onDeleteCard: (id: string) => void;
   onAddCategory: (category: Omit<Category, 'id'>) => void;
   onUpdateCategory: (id: string, updates: Partial<Omit<Category, 'id'>>) => void;
@@ -85,6 +85,7 @@ export function SettingsPage({
   // New card form state
   const [newCardWord, setNewCardWord] = useState('');
   const [newCardImage, setNewCardImage] = useState('');
+  const [newCardImageBlob, setNewCardImageBlob] = useState<Blob | null>(null);
   const [newCardCategory, setNewCardCategory] = useState(categories[0]?.id || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +95,7 @@ export function SettingsPage({
   // Edit card form state
   const [editCardWord, setEditCardWord] = useState('');
   const [editCardImage, setEditCardImage] = useState('');
+  const [editCardImageBlob, setEditCardImageBlob] = useState<Blob | null>(null);
   const [editCardCategory, setEditCardCategory] = useState('');
 
   // New category form state
@@ -112,9 +114,10 @@ export function SettingsPage({
         word: newCardWord.trim(),
         imageUrl: newCardImage.trim(),
         categoryId: newCardCategory,
-      });
+      }, newCardImageBlob || undefined);
       setNewCardWord('');
       setNewCardImage('');
+      setNewCardImageBlob(null);
       setIsAddingCard(false);
     }
   };
@@ -132,7 +135,7 @@ export function SettingsPage({
         word: editCardWord.trim(),
         imageUrl: editCardImage.trim(),
         categoryId: editCardCategory,
-      });
+      }, editCardImageBlob || undefined);
       setEditingCardId(null);
     }
   };
@@ -141,6 +144,7 @@ export function SettingsPage({
     setEditingCardId(null);
     setEditCardWord('');
     setEditCardImage('');
+    setEditCardImageBlob(null);
     setEditCardCategory('');
   };
 
@@ -186,6 +190,9 @@ export function SettingsPage({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Store the blob directly for efficient upload
+      setNewCardImageBlob(file);
+      // Also store base64 for display and fallback
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewCardImage(reader.result as string);
@@ -197,6 +204,9 @@ export function SettingsPage({
   const handleEditImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Store the blob directly for efficient upload
+      setEditCardImageBlob(file);
+      // Also store base64 for display and fallback
       const reader = new FileReader();
       reader.onloadend = () => {
         setEditCardImage(reader.result as string);
