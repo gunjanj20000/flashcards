@@ -128,11 +128,6 @@ const uploadImageToStorage = async (cardId: string, imageUrl: string): Promise<s
   }
 };
 
-// Helper function to get image URL from storage
-const getImageUrlFromStorage = (fileId: string): string => {
-  return `${storage.config.endpoint}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${storage.config.project}&format=webp`;
-};
-
 export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void> {
   try {
     // Get current user ID
