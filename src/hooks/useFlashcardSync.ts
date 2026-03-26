@@ -176,6 +176,20 @@ export function useFlashcardSync() {
         cleanedCategoryCount: cleanedCloudCategories.length,
       });
 
+      // Rebuild blob cache from IndexedDB so uploads still work after app reloads.
+      const storageBlobEntries = await Promise.all(
+        cleanedCloudCards.map(async (card) => {
+          const blob = await storage.getImage(card.id);
+          return blob ? ([card.id, blob] as const) : null;
+        })
+      );
+      const pushBlobCache: BlobCache = new Map(blobCacheRef.current);
+      for (const entry of storageBlobEntries) {
+        if (entry) {
+          pushBlobCache.set(entry[0], entry[1]);
+        }
+      }
+
       const now = Date.now();
       await pushSnapshotToCloud({
         version: 1,
@@ -183,7 +197,7 @@ export function useFlashcardSync() {
         cards: cleanedCloudCards,
         categories: cleanedCloudCategories,
         settings,
-      }, blobCacheRef.current);
+      }, pushBlobCache);
 
       // After successful push, pull the updated cards from cloud to get proper storage URLs
       const updatedCloudSnapshot = await pullSnapshotFromCloud(cards, categories);
