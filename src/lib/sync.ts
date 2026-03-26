@@ -137,7 +137,16 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
     // Push cards to database
     for (const card of snapshot.cards) {
       // Upload image to storage if it's a data URL
-      const imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
+      let imageFileId: string | null = null;
+      let imageUrl = card.imageUrl;
+      
+      if (card.imageUrl.startsWith('data:')) {
+        imageFileId = await uploadImageToStorage(card.id, card.imageUrl);
+        // Construct URL from fileId if upload succeeded
+        if (imageFileId) {
+          imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
+        }
+      }
       
       await databases.createDocument(
         DATABASE_ID,
@@ -146,6 +155,7 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         {
           userId,
           word: card.word,
+          imageUrl, // Always include imageUrl (required field)
           imageFileId: imageFileId || undefined,
           categoryId: card.categoryId,
           createdAt: card.createdAt,
