@@ -45,34 +45,38 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Store the blob directly for efficient upload
-      setNewCardImageBlob(file);
-      // Also store base64 for display and fallback
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewCardImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+
+    setNewCardImageBlob(file);
+    setNewCardImage(objectUrl);
   };
 
   const handleAddCard = () => {
-    if (newCardWord.trim() && newCardImage.trim() && onAddCard) {
-      triggerHaptic([20, 10, 20]);
-      onAddCard({
-        word: newCardWord.trim(),
-        // Use a placeholder imageUrl - it will be updated after image is uploaded to storage
-        imageUrl: 'pending', 
-        categoryId: category.id,
-      }, newCardImageBlob || undefined);
-      setNewCardWord('');
-      setNewCardImage('');
-      setNewCardImageBlob(null);
-      setIsAddingCard(false);
-      toast.success('Card added successfully!');
-    }
+    if (!newCardWord.trim() || !newCardImageBlob || !onAddCard) return;
+
+    triggerHaptic([20, 10, 20]);
+    const previewUrl = URL.createObjectURL(newCardImageBlob);
+    onAddCard({
+      word: newCardWord.trim(),
+      imageUrl: previewUrl,
+      categoryId: category.id,
+    }, newCardImageBlob);
+    setNewCardWord('');
+    setNewCardImage('');
+    setNewCardImageBlob(null);
+    setIsAddingCard(false);
+    toast.success('Card added successfully!');
   };
+
+  useEffect(() => {
+    return () => {
+      if (newCardImage?.startsWith('blob:')) {
+        URL.revokeObjectURL(newCardImage);
+      }
+    };
+  }, [newCardImage]);
 
   // Auto-play on card change
   useEffect(() => {
@@ -173,13 +177,10 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
             className="h-12 rounded-xl text-lg"
           />
 
-          <div className="flex gap-2">
-            <Input
-              placeholder="Image URL"
-              value={newCardImage}
-              onChange={(e) => setNewCardImage(e.target.value)}
-              className="h-12 rounded-xl flex-1"
-            />
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-muted-foreground flex-1">
+              {newCardImage ? 'Image selected' : 'No image selected'}
+            </div>
             <input
               type="file"
               accept="image/*"
@@ -197,7 +198,7 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
             <Button
               onClick={handleAddCard}
               className="h-12 px-4 bg-secondary text-secondary-foreground rounded-xl font-semibold"
-              disabled={!newCardWord.trim() || !newCardImage.trim()}
+              disabled={!newCardWord.trim() || !newCardImageBlob}
             >
               <Check className="w-5 h-5 mr-2" />
               Save

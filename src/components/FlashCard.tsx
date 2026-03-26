@@ -220,10 +220,13 @@ export function FlashCard({ card, onSpeak, onSwipeLeft, onSwipeRight, isFirst = 
         {/* Image Section */}
         <div className={`flashcard-image flex-1 relative overflow-hidden bg-gradient-to-br ${bgGradient} flex items-center justify-center`}>
           <img
-            src={card.imageUrl && card.imageUrl !== 'pending' ? card.imageUrl : (blobUrl || card.imageUrl)}
+            src={card.imageUrl && card.imageUrl !== 'pending' ? card.imageUrl : (blobUrl || '/placeholder.svg')}
             alt={card.word}
             className="w-full h-full object-contain"
             loading="eager"
+            onError={(e) => {
+              e.currentTarget.src = '/placeholder.svg';
+            }}
           />
           
           {/* Sound indicator */}

@@ -238,35 +238,18 @@ const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise
 // Prevents duplicate files for the same card
 const uploadImageToStorage = async (
   cardId: string,
-  imageUrl: string,
   blobCache?: BlobCache
 ): Promise<string | null> => {
   try {
     console.log(`[uploadImageToStorage] Starting upload for card ${cardId}`);
-    
-    let blob: Blob | undefined;
-    
-    // First, try to get blob from cache (direct blob, no conversion needed)
-    if (blobCache && blobCache.has(cardId)) {
-      blob = blobCache.get(cardId);
-      console.log(`[uploadImageToStorage] Using cached blob for card ${cardId}: ${blob?.size} bytes`);
-    }
-    // Otherwise, try to convert data URL to blob
-    else if (imageUrl && imageUrl.startsWith('data:')) {
-      console.log(`[uploadImageToStorage] Fetching data URL for card ${cardId}`);
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        console.warn(`[uploadImageToStorage] Failed to fetch image for card ${cardId}: ${response.statusText}`);
-        return null;
-      }
-      blob = await response.blob();
-      console.log(`[uploadImageToStorage] Converted base64 to blob for card ${cardId}: ${blob.size} bytes`);
-    } else {
-      console.log(`[uploadImageToStorage] Skipping: not a data URL or cached blob`);
+
+    let blob = blobCache?.get(cardId);
+    if (!blob) {
+      console.log(`[uploadImageToStorage] No blob found for ${cardId}`);
       return null;
     }
 
-    if (!blob || blob.size === 0) {
+    if (blob.size === 0) {
       console.warn(`[uploadImageToStorage] Empty blob for card ${cardId}`);
       return null;
     }
@@ -349,21 +332,24 @@ export async function pushSnapshotToCloud(
         // Handle imageUrl and imageFileId
         let imageFileId: string | null = null;
         let imageUrl = 'image'; // Default placeholder
-        
-        console.log(`Attempting image upload for card "${card.word}", has data URL: ${card.imageUrl?.startsWith('data:') ?? false}`);
-        // Try to upload data URL to storage (or use blob from cache)
-        if (card.imageUrl && (card.imageUrl.startsWith('data:') || blobCache?.has(card.id))) {
-          imageFileId = await uploadImageToStorage(card.id, card.imageUrl, blobCache);
-          console.log(`Image upload result for "${card.word}": fileId=${imageFileId}`);
+
+        if (card.imageFileId) {
+          console.log('Skipping upload - already exists');
         }
         
-        // Set imageUrl: use original if it's not a data URL and fits, else use placeholder
-        if (card.imageUrl && !card.imageUrl.startsWith('data:') && card.imageUrl.length < 200000) {
-          imageUrl = card.imageUrl;
-          console.log(`Using stored image URL for "${card.word}"`);
-        } else if (imageFileId) {
+        console.log(`Attempting image upload for card "${card.word}"`);
+        // ONLY rely on blob cache (correct approach)
+        if (!card.imageFileId && blobCache?.has(card.id)) {
+          imageFileId = await uploadImageToStorage(card.id, blobCache);
+          console.log(`Image upload result for "${card.word}": fileId=${imageFileId}`);
+        }
+
+        if (imageFileId) {
           imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
           console.log(`Using storage preview URL for "${card.word}"`);
+        } else if (card.imageUrl) {
+          imageUrl = card.imageUrl;
+          console.log(`Using local image URL fallback for "${card.word}"`);
         } else {
           console.log(`Using placeholder imageUrl for "${card.word}"`);
         }

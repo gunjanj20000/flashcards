@@ -109,34 +109,36 @@ export function SettingsPage({
   const [editCategoryColor, setEditCategoryColor] = useState<Category['color']>('coral');
 
   const handleAddCard = () => {
-    if (newCardWord.trim() && newCardImageBlob && newCardCategory) {
-      onAddCard({
-        word: newCardWord.trim(),
-        imageUrl: 'pending', // Placeholder - will be updated after cloud sync
-        categoryId: newCardCategory,
-      }, newCardImageBlob || undefined);
-      setNewCardWord('');
-      setNewCardImage('');
-      setNewCardImageBlob(null);
-      setIsAddingCard(false);
-    }
+    if (!newCardWord.trim() || !newCardImageBlob || !newCardCategory) return;
+
+    const previewUrl = URL.createObjectURL(newCardImageBlob);
+    onAddCard({
+      word: newCardWord.trim(),
+      imageUrl: previewUrl,
+      categoryId: newCardCategory,
+    }, newCardImageBlob);
+
+    setNewCardWord('');
+    setNewCardImage('');
+    setNewCardImageBlob(null);
+    setIsAddingCard(false);
   };
 
   const handleStartEditCard = (card: Flashcard) => {
     setEditingCardId(card.id);
     setEditCardWord(card.word);
-    setEditCardImage(card.imageUrl);
+    setEditCardImage(card.imageUrl || '');
+    setEditCardImageBlob(null);
     setEditCardCategory(card.categoryId);
   };
 
   const handleSaveEditCard = () => {
     if (!editingCardId || !editCardWord.trim()) return;
-    
-    // If a new image was uploaded, use pending; otherwise keep existing imageUrl
-    const imageUrl = editCardImageBlob ? 'pending' : editCardImage;
-    
-    if (!imageUrl.trim()) return; // Must have an image (either existing or new)
-    
+
+    const imageUrl = editCardImageBlob ? URL.createObjectURL(editCardImageBlob) : editCardImage;
+
+    if (!imageUrl.trim()) return;
+
     onUpdateCard(editingCardId, {
       word: editCardWord.trim(),
       imageUrl,
@@ -194,30 +196,22 @@ export function SettingsPage({
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Store the blob directly for efficient upload
-      setNewCardImageBlob(file);
-      // Also store base64 for display and fallback
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewCardImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+
+    setNewCardImageBlob(file);
+    setNewCardImage(objectUrl);
   };
 
   const handleEditImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Store the blob directly for efficient upload
-      setEditCardImageBlob(file);
-      // Also store base64 for display and fallback
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditCardImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const objectUrl = URL.createObjectURL(file);
+
+    setEditCardImageBlob(file);
+    setEditCardImage(objectUrl);
   };
 
   const handleBackup = async () => {
@@ -299,6 +293,22 @@ export function SettingsPage({
 
     void checkSession();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (newCardImage?.startsWith('blob:')) {
+        URL.revokeObjectURL(newCardImage);
+      }
+    };
+  }, [newCardImage]);
+
+  useEffect(() => {
+    return () => {
+      if (editCardImage?.startsWith('blob:')) {
+        URL.revokeObjectURL(editCardImage);
+      }
+    };
+  }, [editCardImage]);
 
   const handleLogin = async () => {
     if (!accountEmail || !accountPassword) return;
@@ -499,13 +509,10 @@ export function SettingsPage({
                 className="h-12 rounded-xl text-lg"
               />
 
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Image URL"
-                  value={newCardImage}
-                  onChange={(e) => setNewCardImage(e.target.value)}
-                  className="h-12 rounded-xl flex-1"
-                />
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-muted-foreground flex-1">
+                  {newCardImage ? 'Image selected' : 'No image selected'}
+                </div>
                 <input
                   type="file"
                   accept="image/*"
@@ -580,13 +587,10 @@ export function SettingsPage({
                       className="h-12 rounded-xl text-lg"
                     />
 
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Image URL"
-                        value={editCardImage}
-                        onChange={(e) => setEditCardImage(e.target.value)}
-                        className="h-12 rounded-xl flex-1"
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-muted-foreground flex-1">
+                        {editCardImage ? 'Image selected' : 'No image selected'}
+                      </div>
                       <input
                         type="file"
                         accept="image/*"
@@ -644,7 +648,14 @@ export function SettingsPage({
               return (
                 <Card key={card.id} className="p-3 rounded-2xl flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400 flex-shrink-0 flex items-center justify-center">
-                    <img src={card.imageUrl} alt={card.word} className="w-full h-full object-contain" />
+                    <img
+                      src={card.imageUrl || '/placeholder.svg'}
+                      alt={card.word}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder.svg';
+                      }}
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-lg truncate">
