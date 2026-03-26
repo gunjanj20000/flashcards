@@ -14,9 +14,14 @@ const CLOUD_PREFS_KEY = 'flashcardCloudData';
  *    - File IDs are card IDs - uploading with same ID replaces the file
  *    - Existing files are deleted before upload to avoid duplicates
  * 
- * 3. PULL LEVEL:
- *    - Only cards/categories not in local storage are pulled
+ * 3. PULL LEVEL (by ID):
+ *    - Only cards/categories not in local storage (by ID) are pulled
  *    - Cloud documents are filtered by userId for multi-user support
+ * 
+ * 4. PUSH/PULL LEVEL (by NAME):
+ *    - Before pushing: Skip cards/categories that have the same name in cloud (case-insensitive)
+ *    - Before pulling: Skip cards/categories that have the same name locally (case-insensitive)
+ *    - Prevents semantic duplicates even if IDs differ
  */
 
 export interface CloudSnapshot {
@@ -199,9 +204,35 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
     const user = await account.get();
     const userId = user.$id;
 
+    // Fetch existing cloud data to check for name duplicates
+    let existingCardNames = new Set<string>();
+    let existingCategoryNames = new Set<string>();
+    
+    try {
+      const existingCards = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.cards);
+      const existingCategories = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.categories);
+      
+      existingCards.documents
+        .filter((doc) => doc.userId === userId)
+        .forEach((doc) => existingCardNames.add(String(doc.word || '').toLowerCase()));
+      
+      existingCategories.documents
+        .filter((doc) => doc.userId === userId)
+        .forEach((doc) => existingCategoryNames.add(String(doc.name || '').toLowerCase()));
+    } catch (error) {
+      console.warn('Could not fetch existing cloud data for deduplication:', error);
+      // Continue anyway - deduplication is a safeguard, not blocking
+    }
+
     // Push cards to database
     for (const card of snapshot.cards) {
       try {
+        // Skip if card with same name already exists in cloud
+        if (existingCardNames.has(card.word.toLowerCase())) {
+          console.log(`Skipping card push: "${card.word}" already exists in cloud`);
+          continue;
+        }
+
         // Handle imageUrl and imageFileId
         let imageFileId: string | null = null;
         let imageUrl = 'image'; // Default placeholder
@@ -242,6 +273,11 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
     // Push categories to database
     for (const category of snapshot.categories) {
       try {
+        // Skip if category with same name already exists in cloud
+        if (existingCategoryNames.has(category.name.toLowerCase())) {
+          console.log(`Skipping category push: "${category.name}" already exists in cloud`);
+          continue;
+        }
         await createOrUpdateDocument(
           DATABASE_ID,
           COLLECTION_IDS.categories,
@@ -292,15 +328,24 @@ export async function pullSnapshotFromCloud(
     // This prevents pulling cards/categories that already exist locally
     const localCardIds = new Set(localCards.map((card) => card.id));
     const localCategoryIds = new Set(localCategories.map((cat) => cat.id));
+    
+    // Also create name-based sets to prevent pulling duplicates by name
+    const localCardNames = new Set(localCards.map((card) => card.word.toLowerCase()));
+    const localCategoryNames = new Set(localCategories.map((cat) => cat.name.toLowerCase()));
 
     // Try to pull from database first
     const cardsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.cards);
     const categoriesResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.categories);
 
-    // Filter to only cards and categories not available locally
+    // Filter to only cards and categories not available locally (by ID or name)
     const cards = normalizeCards(
       cardsResponse.documents
-        .filter((doc) => doc.userId === userId && !localCardIds.has(doc.$id))
+        .filter((doc) => {
+          const hasId = localCardIds.has(doc.$id);
+          const hasName = localCardNames.has(String(doc.word || '').toLowerCase());
+          const isUserCard = doc.userId === userId;
+          return isUserCard && !hasId && !hasName;
+        })
         .map((doc) => ({
           id: doc.$id,
           ...doc,
@@ -311,7 +356,12 @@ export async function pullSnapshotFromCloud(
 
     const categories = normalizeCategories(
       categoriesResponse.documents
-        .filter((doc) => doc.userId === userId && !localCategoryIds.has(doc.$id))
+        .filter((doc) => {
+          const hasId = localCategoryIds.has(doc.$id);
+          const hasName = localCategoryNames.has(String(doc.name || '').toLowerCase());
+          const isUserCategory = doc.userId === userId;
+          return isUserCategory && !hasId && !hasName;
+        })
         .map((doc) => ({
           id: doc.$id,
           ...doc,
