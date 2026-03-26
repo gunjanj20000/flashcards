@@ -273,9 +273,12 @@ const uploadImageToStorage = async (
 
     // Upload to Appwrite Storage
     console.log(`[uploadImageToStorage] Creating file in storage for card ${cardId}`);
-    const file = await storage.createFile(BUCKET_ID, cardId, blob);
-    console.log(`[uploadImageToStorage] ✅ File created successfully: ${file.$id}`);
-    return file.$id;
+    // Convert Blob to File object (Appwrite SDK requires File, not Blob)
+    const file = new File([blob], `card-${cardId}.jpg`, { type: 'image/jpeg' });
+    console.log(`[uploadImageToStorage] Uploading File object: ${file.name}, size: ${file.size}`);
+    const uploadedFile = await storage.createFile(BUCKET_ID, cardId, file);
+    console.log(`[uploadImageToStorage] ✅ File created successfully: ${uploadedFile.$id}`);
+    return uploadedFile.$id;
   } catch (error) {
     console.warn(`[uploadImageToStorage] ❌ Failed to upload image for card ${cardId}:`, error);
     // If file already exists due to race condition, return the cardId as fileId
@@ -367,23 +370,35 @@ export async function pushSnapshotToCloud(
         // else: keep default 'image' placeholder
         
         console.log(`Creating/updating card document for "${card.word}"`);
-        await createOrUpdateDocument(
-          DATABASE_ID,
-          COLLECTION_IDS.cards,
-          card.id,
-          {
-            userId,
-            word: card.word,
-            imageUrl, // Always included (required field)
-            imageFileId: imageFileId || undefined,
-            categoryId: card.categoryId,
-            createdAt: card.createdAt,
-            updatedAt: card.updatedAt,
-            syncStatus: card.syncStatus,
+        const cardData = {
+          userId,
+          word: card.word,
+          imageUrl, // Always included (required field)
+          imageFileId: imageFileId || undefined,
+          categoryId: card.categoryId,
+          createdAt: card.createdAt,
+          updatedAt: card.updatedAt,
+          syncStatus: card.syncStatus,
+        };
+        console.log(`Card data to save:`, cardData);
+        
+        try {
+          await createOrUpdateDocument(
+            DATABASE_ID,
+            COLLECTION_IDS.cards,
+            card.id,
+            cardData
+          );
+          pushedCardCount++;
+          console.log(`Successfully pushed card: "${card.word}" (total: ${pushedCardCount})`);
+        } catch (docError) {
+          console.error(`Failed to create/update document for ${card.id}:`, docError);
+          // If schema error, log the full error for debugging
+          if ((docError as any)?.message?.includes('Unknown attribute') || (docError as any)?.message?.includes('Invalid')) {
+            console.error(`⚠️ Schema validation error - ensure cards collection has all required fields including imageUrl`);
           }
-        );
-        pushedCardCount++;
-        console.log(`Successfully pushed card: "${card.word}" (total: ${pushedCardCount})`);
+          throw docError;
+        }
       } catch (error) {
         console.error(`Failed to sync card ${card.id}:`, error);
       }
