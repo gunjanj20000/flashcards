@@ -14,6 +14,27 @@ export interface CloudSnapshot {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+// Helper to create or update document (upsert)
+const createOrUpdateDocument = async (
+  dbId: string,
+  collectionId: string,
+  docId: string,
+  data: Record<string, unknown>
+): Promise<void> => {
+  try {
+    // Try to update first
+    await databases.updateDocument(dbId, collectionId, docId, data);
+  } catch (error: unknown) {
+    // If document doesn't exist (404), create it
+    const err = error as { code?: number; response?: { code: number } };
+    if (err.code === 404 || err.response?.code === 404) {
+      await databases.createDocument(dbId, collectionId, docId, data);
+    } else {
+      throw error;
+    }
+  }
+};
+
 // Helper function to get image URL from storage
 const getImageUrlFromStorage = (fileId: string, projectId: string, endpointUrl: string): string => {
   return `${endpointUrl}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${projectId}&width=200&height=200&gravity=center`;
@@ -168,7 +189,7 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         }
         // else: keep default 'image' placeholder
         
-        await databases.createDocument(
+        await createOrUpdateDocument(
           DATABASE_ID,
           COLLECTION_IDS.cards,
           card.id,
@@ -190,21 +211,25 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
 
     // Push categories to database
     for (const category of snapshot.categories) {
-      await databases.createDocument(
-        DATABASE_ID,
-        COLLECTION_IDS.categories,
-        category.id,
-        {
-          userId,
-          name: category.name,
-          icon: category.icon,
-          color: category.color,
-          order: category.order,
-          createdAt: category.createdAt,
-          updatedAt: category.updatedAt,
-          syncStatus: category.syncStatus,
-        }
-      );
+      try {
+        await createOrUpdateDocument(
+          DATABASE_ID,
+          COLLECTION_IDS.categories,
+          category.id,
+          {
+            userId,
+            name: category.name,
+            icon: category.icon,
+            color: category.color,
+            order: category.order,
+            createdAt: category.createdAt,
+            updatedAt: category.updatedAt,
+            syncStatus: category.syncStatus,
+          }
+        );
+      } catch (error) {
+        console.error(`Failed to sync category ${category.id}:`, error);
+      }
     }
 
     // Fallback: also store in account prefs for backward compatibility
