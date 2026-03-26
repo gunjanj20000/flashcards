@@ -80,6 +80,7 @@ export function SettingsPage({
   const [isPullConfirmOpen, setIsPullConfirmOpen] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [syncLogs, setSyncLogs] = useState<Array<{ timestamp: string; message: string; type: 'info' | 'success' | 'error' }>>([]);
 
   // New card form state
   const [newCardWord, setNewCardWord] = useState('');
@@ -357,16 +358,26 @@ export function SettingsPage({
     }
   };
 
+  const addSyncLog = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setSyncLogs((prev) => [...prev.slice(-9), { timestamp, message, type }]); // Keep last 10 logs
+  };
+
   const handlePushToCloud = async () => {
     setIsManualSyncBusy(true);
+    addSyncLog('Starting push to cloud...', 'info');
     try {
       const result = await onSyncToCloud();
       if (!result.success) {
-        toast.error(result.error ?? 'Push to cloud failed');
+        const errorMsg = result.error ?? 'Push to cloud failed';
+        toast.error(errorMsg);
+        addSyncLog(errorMsg, 'error');
         return;
       }
 
-      toast.success(`Pushed ${result.syncedCards ?? 0} cards and ${result.syncedCategories ?? 0} categories`);
+      const successMsg = `Pushed ${result.syncedCards ?? 0} cards and ${result.syncedCategories ?? 0} categories`;
+      toast.success(successMsg);
+      addSyncLog(successMsg, 'success');
     } finally {
       setIsManualSyncBusy(false);
     }
@@ -379,15 +390,20 @@ export function SettingsPage({
   const confirmPullFromCloud = async () => {
     setIsPullConfirmOpen(false);
     setIsManualSyncBusy(true);
+    addSyncLog('Starting pull from cloud...', 'info');
     try {
       const result = await onPullFromCloud();
       if (!result.success) {
-        toast.error(result.error ?? 'Pull from cloud failed');
+        const errorMsg = result.error ?? 'Pull from cloud failed';
+        toast.error(errorMsg);
+        addSyncLog(errorMsg, 'error');
         return;
       }
 
       await onRefreshFromStorage();
-      toast.success(`Pulled ${result.syncedCards ?? 0} cards and ${result.syncedCategories ?? 0} categories`);
+      const successMsg = `Pulled ${result.syncedCards ?? 0} cards and ${result.syncedCategories ?? 0} categories`;
+      toast.success(successMsg);
+      addSyncLog(successMsg, 'success');
     } finally {
       setIsManualSyncBusy(false);
     }
@@ -1013,13 +1029,33 @@ export function SettingsPage({
                     </div>
                   </Card>
 
-                  <Button
-                    onClick={() => window.open('https://sgp.cloud.appwrite.io', '_blank')}
-                    variant="outline"
-                    className="w-full h-11 rounded-xl font-semibold mt-4"
-                  >
-                    Open Appwrite Console
-                  </Button>
+                  <Card className="p-4 rounded-2xl space-y-3">
+                    <div>
+                      <p className="font-bold text-sm">Sync Activity Log</p>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto bg-muted rounded-lg p-3">
+                      {syncLogs.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No sync activity yet</p>
+                      ) : (
+                        syncLogs.map((log, idx) => (
+                          <div key={idx} className="text-xs">
+                            <span className="text-muted-foreground">[{log.timestamp}]</span>{' '}
+                            <span
+                              className={
+                                log.type === 'success'
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : log.type === 'error'
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-blue-600 dark:text-blue-400'
+                              }
+                            >
+                              {log.message}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </Card>
                 </>
               ) : (
                 <>
