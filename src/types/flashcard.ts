@@ -7,7 +7,7 @@ export interface Flashcard {
   createdAt?: number;
   updatedAt?: number;
   syncStatus?: 'synced' | 'pending' | 'conflict';
-  localImageData?: string; // Base64 for offline storage
+  // Images are now stored as blobs in separate imagesStore
 }
 
 export interface Category {

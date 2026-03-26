@@ -240,6 +240,8 @@ export function useFlashcards() {
     // Store blob in cache if provided for efficient upload
     if (imageBlob) {
       sync.setCardImageBlob(newCard.id, imageBlob);
+      // Also save blob to offline storage for display
+      storage.saveImage(newCard.id, imageBlob);
     }
     
     const updatedCards = [...cards, newCard];
@@ -267,6 +269,8 @@ export function useFlashcards() {
     // Store blob in cache if provided for efficient upload
     if (imageBlob) {
       sync.setCardImageBlob(id, imageBlob);
+      // Also save blob to offline storage for display
+      storage.saveImage(id, imageBlob);
     }
     
     setCards(updatedCards);

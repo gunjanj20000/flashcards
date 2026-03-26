@@ -185,14 +185,40 @@ export function useFlashcardSync() {
         settings,
       }, blobCacheRef.current);
 
+      // After successful push, pull the updated cards from cloud to get proper storage URLs
+      const updatedCloudSnapshot = await pullSnapshotFromCloud(cards, categories);
+      const cloudCardsWithStorageUrls = updatedCloudSnapshot?.cards ?? [];
+      
+      // Create maps of cardId -> imageUrl and imageFileId from cloud (which has proper storage URLs after upload)
+      const cloudImageUrls = new Map<string, string>();
+      const cloudImageFileIds = new Map<string, string>();
+      cloudCardsWithStorageUrls.forEach((card) => {
+        if (card.imageUrl && !card.imageUrl.startsWith('data:')) {
+          cloudImageUrls.set(card.id, card.imageUrl);
+        }
+        if (card.imageFileId) {
+          cloudImageFileIds.set(card.id, card.imageFileId);
+        }
+      });
+
       const pushedCardIds = new Set(cardsToApply.map((card) => card.id));
       const pushedCategoryIds = new Set(categoriesToApply.map((category) => category.id));
 
-      const syncedCards: Flashcard[] = cards.map((card) => (
-        pushedCardIds.has(card.id)
-          ? { ...card, syncStatus: 'synced' }
-          : card
-      ));
+      // Update local cards with proper storage URLs and fileIds if available from cloud
+      const syncedCards: Flashcard[] = cards.map((card) => {
+        const shouldMarkSynced = pushedCardIds.has(card.id);
+        const storageUrl = cloudImageUrls.get(card.id);
+        const imageFileId = cloudImageFileIds.get(card.id);
+        
+        return {
+          ...card,
+          // Replace base64 or 'pending' imageUrl with proper storage URL if available
+          imageUrl: storageUrl || card.imageUrl,
+          // Update imageFileId if available from cloud
+          imageFileId: imageFileId || card.imageFileId,
+          syncStatus: shouldMarkSynced ? 'synced' : card.syncStatus,
+        };
+      });
       const syncedCategories: Category[] = categories.map((category) => (
         pushedCategoryIds.has(category.id)
           ? { ...category, syncStatus: 'synced' }

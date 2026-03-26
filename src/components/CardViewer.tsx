@@ -62,7 +62,8 @@ export function CardViewer({ category, cards, settings, onBack, onAddCard, allCa
       triggerHaptic([20, 10, 20]);
       onAddCard({
         word: newCardWord.trim(),
-        imageUrl: newCardImage.trim(),
+        // Use a placeholder imageUrl - it will be updated after image is uploaded to storage
+        imageUrl: 'pending', 
         categoryId: category.id,
       }, newCardImageBlob || undefined);
       setNewCardWord('');

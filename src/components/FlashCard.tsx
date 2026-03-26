@@ -4,6 +4,7 @@ import { useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Volume2 } from 'lucide-react';
 import type { Flashcard } from '@/types/flashcard';
 import { useHaptics } from '@/hooks/useHaptics';
+import { useOfflineStorage } from '@/hooks/useOfflineStorage';
 
 interface FlashCardProps {
   card: Flashcard;
@@ -27,7 +28,10 @@ export function FlashCard({ card, onSpeak, onSwipeLeft, onSwipeRight, isFirst = 
   const haloTimerRef = useRef<number | null>(null);
   const [isHaloVisible, setIsHaloVisible] = useState(false);
   const [haloPulseKey, setHaloPulseKey] = useState(0);
+  const [blobUrl, setBlobUrl] = useState<string | undefined>();
+  const blobUrlRef = useRef<string | undefined>();
   const { triggerHaptic } = useHaptics();
+  const storage = useOfflineStorage();
 
   // Generate a gradient background based on card properties
   const gradients = [
@@ -73,6 +77,36 @@ export function FlashCard({ card, onSpeak, onSwipeLeft, onSwipeRight, isFirst = 
       }
     };
   }, []);
+
+  // Load blob image from offline storage when imageUrl is 'pending'
+  useEffect(() => {
+    if (card.imageUrl !== 'pending') {
+      // Clean up previous blob URL if not needed
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = undefined;
+        setBlobUrl(undefined);
+      }
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadBlobImage = async () => {
+      const blob = await storage.getImage(card.id);
+      if (isMounted && blob) {
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setBlobUrl(url);
+      }
+    };
+
+    loadBlobImage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [card.id, card.imageUrl, storage]);
 
   return (
     <motion.div
@@ -186,7 +220,7 @@ export function FlashCard({ card, onSpeak, onSwipeLeft, onSwipeRight, isFirst = 
         {/* Image Section */}
         <div className={`flashcard-image flex-1 relative overflow-hidden bg-gradient-to-br ${bgGradient} flex items-center justify-center`}>
           <img
-            src={card.imageUrl}
+            src={card.imageUrl && card.imageUrl !== 'pending' ? card.imageUrl : (blobUrl || card.imageUrl)}
             alt={card.word}
             className="w-full h-full object-contain"
             loading="eager"

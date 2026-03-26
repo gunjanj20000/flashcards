@@ -325,20 +325,20 @@ const DEFAULT_CARDS: Flashcard[] = [];
      }
    }, []);
  
-   // Image operations (store base64 locally)
-   const saveImage = useCallback(async (cardId: string, imageData: string): Promise<void> => {
+   // Image operations (store blobs locally for efficiency)
+   const saveImage = useCallback(async (cardId: string, imageBlob: Blob): Promise<void> => {
      try {
-      await withStoreRecovery(() => set(cardId, imageData, imagesStore));
+      await withStoreRecovery(() => set(cardId, imageBlob, imagesStore));
      } catch (error) {
-       console.error('Failed to save image to IndexedDB:', error);
+       console.error('Failed to save image blob to IndexedDB:', error);
      }
    }, []);
  
-   const getImage = useCallback(async (cardId: string): Promise<string | undefined> => {
+   const getImage = useCallback(async (cardId: string): Promise<Blob | undefined> => {
      try {
-      return await withStoreRecovery(() => get<string>(cardId, imagesStore));
+      return await withStoreRecovery(() => get<Blob>(cardId, imagesStore));
      } catch (error) {
-       console.error('Failed to get image from IndexedDB:', error);
+       console.error('Failed to get image blob from IndexedDB:', error);
        return undefined;
      }
    }, []);
