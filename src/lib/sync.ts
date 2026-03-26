@@ -178,11 +178,14 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
             imageUrl, // Always included (required field)
             imageFileId: imageFileId || undefined,
             categoryId: card.categoryId,
-          createdAt: card.createdAt,
-          updatedAt: card.updatedAt,
-          syncStatus: card.syncStatus,
-        }
-      );
+            createdAt: card.createdAt,
+            updatedAt: card.updatedAt,
+            syncStatus: card.syncStatus,
+          }
+        );
+      } catch (error) {
+        console.error(`Failed to sync card ${card.id}:`, error);
+      }
     }
 
     // Push categories to database
