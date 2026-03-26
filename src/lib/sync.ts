@@ -137,11 +137,16 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
     }
 
     // Fallback: also store in account prefs for backward compatibility
-    const prefs = (await account.getPrefs()) as Record<string, unknown>;
-    await account.updatePrefs({
-      ...prefs,
-      [CLOUD_PREFS_KEY]: snapshot,
-    });
+    try {
+      const prefs = (await account.getPrefs()) as Record<string, unknown>;
+      await account.updatePrefs({
+        ...prefs,
+        [CLOUD_PREFS_KEY]: JSON.stringify(snapshot),
+      });
+    } catch (prefsError) {
+      console.warn('Could not update account prefs:', prefsError);
+      // Don't fail if prefs update fails, database sync is primary
+    }
   } catch (error) {
     console.error('Error pushing snapshot to cloud:', error);
     throw error;
@@ -188,6 +193,18 @@ export async function pullSnapshotFromCloud(): Promise<CloudSnapshot | null> {
     
     // Fallback to account prefs for backward compatibility
     const prefs = (await account.getPrefs()) as Record<string, unknown>;
-    return parseSnapshot(prefs[CLOUD_PREFS_KEY]);
+    const prefsData = prefs[CLOUD_PREFS_KEY];
+    
+    // Handle both stringified and non-stringified prefs for backward compatibility
+    let snapshotData = prefsData;
+    if (typeof prefsData === 'string') {
+      try {
+        snapshotData = JSON.parse(prefsData);
+      } catch {
+        return null;
+      }
+    }
+    
+    return parseSnapshot(snapshotData);
   }
 }
