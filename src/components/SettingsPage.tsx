@@ -108,8 +108,25 @@ export function SettingsPage({
   const [editCategoryIcon, setEditCategoryIcon] = useState('');
   const [editCategoryColor, setEditCategoryColor] = useState<Category['color']>('coral');
 
+  useEffect(() => {
+    if (categories.length === 0) {
+      if (newCardCategory) {
+        setNewCardCategory('');
+      }
+      return;
+    }
+
+    const hasSelectedCategory = categories.some((cat) => cat.id === newCardCategory);
+    if (!hasSelectedCategory) {
+      setNewCardCategory(categories[0].id);
+    }
+  }, [categories, newCardCategory]);
+
   const handleAddCard = () => {
-    if (!newCardWord.trim() || !newCardImageBlob || !newCardCategory) return;
+    if (!newCardWord.trim() || !newCardImageBlob || !newCardCategory) {
+      toast.error('Please add word, image, and category before saving');
+      return;
+    }
 
     const previewUrl = URL.createObjectURL(newCardImageBlob);
     onAddCard({
