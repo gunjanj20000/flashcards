@@ -8,4 +8,15 @@ const account = new Account(client);
 const databases = new Databases(client);
 const storage = new Storage(client);
 
+// Database configuration
+export const DATABASE_ID = "kidscard_db";
+export const COLLECTION_IDS = {
+  cards: "cards",
+  categories: "categories",
+  settings: "settings",
+};
+
+// Storage configuration
+export const BUCKET_ID = "card_images";
+
 export { client, account, databases, storage };

@@ -1,4 +1,4 @@
-import { account } from '@/lib/appwrite';
+import { account, databases, DATABASE_ID, COLLECTION_IDS } from '@/lib/appwrite';
 import type { AppSettings, Category, Flashcard } from '@/types/flashcard';
 
 const CLOUD_PREFS_KEY = 'flashcardCloudData';
@@ -94,15 +94,86 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
 };
 
 export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void> {
-  const prefs = (await account.getPrefs()) as Record<string, unknown>;
+  try {
+    // Push cards to database
+    for (const card of snapshot.cards) {
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTION_IDS.cards,
+        card.id,
+        {
+          word: card.word,
+          imageUrl: card.imageUrl,
+          categoryId: card.categoryId,
+          createdAt: card.createdAt,
+          updatedAt: card.updatedAt,
+          syncStatus: card.syncStatus,
+        }
+      );
+    }
 
-  await account.updatePrefs({
-    ...prefs,
-    [CLOUD_PREFS_KEY]: snapshot,
-  });
+    // Push categories to database
+    for (const category of snapshot.categories) {
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTION_IDS.categories,
+        category.id,
+        {
+          name: category.name,
+          icon: category.icon,
+          color: category.color,
+          order: category.order,
+          createdAt: category.createdAt,
+          updatedAt: category.updatedAt,
+          syncStatus: category.syncStatus,
+        }
+      );
+    }
+
+    // Fallback: also store in account prefs for backward compatibility
+    const prefs = (await account.getPrefs()) as Record<string, unknown>;
+    await account.updatePrefs({
+      ...prefs,
+      [CLOUD_PREFS_KEY]: snapshot,
+    });
+  } catch (error) {
+    console.error('Error pushing snapshot to cloud:', error);
+    throw error;
+  }
 }
 
 export async function pullSnapshotFromCloud(): Promise<CloudSnapshot | null> {
-  const prefs = (await account.getPrefs()) as Record<string, unknown>;
-  return parseSnapshot(prefs[CLOUD_PREFS_KEY]);
+  try {
+    // Try to pull from database first
+    const cardsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.cards);
+    const categoriesResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.categories);
+
+    const cards = normalizeCards(
+      cardsResponse.documents.map((doc) => ({
+        id: doc.$id,
+        ...doc,
+      }))
+    );
+
+    const categories = normalizeCategories(
+      categoriesResponse.documents.map((doc) => ({
+        id: doc.$id,
+        ...doc,
+      }))
+    );
+
+    return {
+      version: 1,
+      updatedAt: Date.now(),
+      cards,
+      categories,
+      settings: normalizeSettings({}),
+    };
+  } catch (error) {
+    console.warn('Error pulling from database, falling back to account prefs:', error);
+    
+    // Fallback to account prefs for backward compatibility
+    const prefs = (await account.getPrefs()) as Record<string, unknown>;
+    return parseSnapshot(prefs[CLOUD_PREFS_KEY]);
+  }
 }
