@@ -95,6 +95,10 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
 
 export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void> {
   try {
+    // Get current user ID
+    const user = await account.get();
+    const userId = user.$id;
+
     // Push cards to database
     for (const card of snapshot.cards) {
       await databases.createDocument(
@@ -102,6 +106,7 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         COLLECTION_IDS.cards,
         card.id,
         {
+          userId,
           word: card.word,
           imageUrl: card.imageUrl,
           categoryId: card.categoryId,
@@ -119,6 +124,7 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
         COLLECTION_IDS.categories,
         category.id,
         {
+          userId,
           name: category.name,
           icon: category.icon,
           color: category.color,
@@ -144,22 +150,30 @@ export async function pushSnapshotToCloud(snapshot: CloudSnapshot): Promise<void
 
 export async function pullSnapshotFromCloud(): Promise<CloudSnapshot | null> {
   try {
+    // Get current user ID for filtering
+    const user = await account.get();
+    const userId = user.$id;
+
     // Try to pull from database first
     const cardsResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.cards);
     const categoriesResponse = await databases.listDocuments(DATABASE_ID, COLLECTION_IDS.categories);
 
     const cards = normalizeCards(
-      cardsResponse.documents.map((doc) => ({
-        id: doc.$id,
-        ...doc,
-      }))
+      cardsResponse.documents
+        .filter((doc) => doc.userId === userId)
+        .map((doc) => ({
+          id: doc.$id,
+          ...doc,
+        }))
     );
 
     const categories = normalizeCategories(
-      categoriesResponse.documents.map((doc) => ({
-        id: doc.$id,
-        ...doc,
-      }))
+      categoriesResponse.documents
+        .filter((doc) => doc.userId === userId)
+        .map((doc) => ({
+          id: doc.$id,
+          ...doc,
+        }))
     );
 
     return {
