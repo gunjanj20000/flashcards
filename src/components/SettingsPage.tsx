@@ -894,7 +894,9 @@ export function SettingsPage({
 
       {/* Settings Tab */}
       {activeTab === 'settings' && (
-        <div className="h-full flex flex-col gap-3 min-h-0">
+        <div className="h-full flex justify-center items-start">
+          <div className="w-[70%] max-h-[80vh] overflow-y-auto">
+            <div className="flex flex-col gap-3">
           <Card className="p-4 rounded-2xl">
             <div className="flex items-center justify-between">
               <div>
@@ -997,12 +999,16 @@ export function SettingsPage({
               </div>
             </div>
           </Card>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Account Tab */}
       {activeTab === 'account' && (
-        <div className="h-full flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
+        <div className="h-full flex justify-center items-start">
+          <div className="w-[70%] max-h-[80vh] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-3">
           {isCheckingSession && (
             <Card className="p-4 rounded-2xl">
               <p className="text-sm text-muted-foreground">Checking account session...</p>
@@ -1334,6 +1340,8 @@ export function SettingsPage({
               </button>
             </motion.div>
           )}
+            </div>
+          </div>
         </div>
       )}
 
