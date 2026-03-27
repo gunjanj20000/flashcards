@@ -138,7 +138,7 @@ const DEFAULT_CARDS: Flashcard[] = [];
    autoPlayAudio: true,
    voiceSpeed: 'normal',
    repeatAudio: false,
-  theme: 'sunshine',
+  theme: 'ocean',
    enableCloudSync: false,
  };
  

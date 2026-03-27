@@ -46,7 +46,28 @@ interface SettingsPageProps {
 type Tab = 'cards' | 'categories' | 'settings' | 'account';
 
 const colorOptions: Category['color'][] = ['coral', 'mint', 'sky', 'lavender', 'sunshine', 'peach'];
-const emojiOptions = ['🐾', '🎨', '🔢', '🍎', '⭐', '🌸', '🎵', '🚗', '🏠', '📚', '🎮', '⚽'];
+const emojiOptions = [
+  // Animals
+  '🐶', '🐱', '🐭', '🐻', '🐼', '🦁', '🐮', '🐳',
+  // Food & Drink
+  '🍎', '🍊', '🍌', '🍉', '🍕', '🍔', '🍰', '🥛',
+  // People & Activities
+  '👨', '👩', '💪', '🏃', '🧘', '⛹️',
+  // Learning
+  '📚', '✏️', '🔬',
+  // Sports
+  '⚽', '🏀', '🎾', '🏐',
+  // Arts & Music
+  '🎨', '🎭', '🎵', '🎸',
+  // Transportation
+  '🚗', '✈️', '🚂', '🚢',
+  // Home & Places
+  '🏠', '🏫', '🏥', '🏊',
+  // Nature
+  '🌳', '🌸', '🌊', '☀️',
+  // Fun & Recreation
+  '🎮', '🎡', '🎪', '😊'
+];
 
 export function SettingsPage({
   categories,
@@ -509,16 +530,12 @@ export function SettingsPage({
       {/* Cards Tab */}
       {activeTab === 'cards' && (
         <div className="h-full flex flex-col gap-3 min-h-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <h2 className="text-lg font-semibold">Cards</h2>
-            <Button
-              onClick={() => setIsAddingCard(true)}
-              className="h-10 px-4 bg-primary text-primary-foreground rounded-xl font-semibold text-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add
-            </Button>
-          </div>
+          <Button
+            onClick={() => setIsAddingCard(true)}
+            className="h-10 px-4 bg-primary text-primary-foreground rounded-xl font-semibold text-sm w-fit"
+          >
+            Add Cards
+          </Button>
 
           {isAddingCard && (
             <motion.div
@@ -713,16 +730,12 @@ export function SettingsPage({
       {/* Categories Tab */}
       {activeTab === 'categories' && (
         <div className="h-full flex flex-col gap-3 min-h-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <h2 className="text-lg font-semibold">Categories</h2>
-            <Button
-              onClick={() => setIsAddingCategory(true)}
-              className="h-10 px-4 bg-primary text-primary-foreground rounded-xl font-semibold text-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add
-            </Button>
-          </div>
+          <Button
+            onClick={() => setIsAddingCategory(true)}
+            className="h-10 px-4 bg-primary text-primary-foreground rounded-xl font-semibold text-sm w-fit"
+          >
+            Add Categories
+          </Button>
 
           {isAddingCategory && (
             <motion.div
