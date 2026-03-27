@@ -103,6 +103,8 @@ const Index = () => {
     restoreLocalBackup,
     refreshFromStorage,
     syncState,
+    isPushSyncing,
+    isPullSyncing,
     syncToCloud,
     pullFromCloud,
   } = useFlashcards();
@@ -351,6 +353,8 @@ const Index = () => {
               onCreateLocalBackup={createLocalBackup}
               onRestoreLocalBackup={restoreLocalBackup}
               syncState={syncState}
+              isPushSyncing={isPushSyncing}
+              isPullSyncing={isPullSyncing}
               onSyncToCloud={syncToCloud}
               onPullFromCloud={pullFromCloud}
               onRefreshFromStorage={refreshFromStorage}

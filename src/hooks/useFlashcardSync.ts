@@ -24,6 +24,8 @@ export function useFlashcardSync() {
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     pendingChanges: 0,
   });
+  const [isPushSyncing, setIsPushSyncing] = useState(false);
+  const [isPullSyncing, setIsPullSyncing] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -128,7 +130,7 @@ export function useFlashcardSync() {
       };
     }
 
-    setSyncState((prev) => ({ ...prev, isSyncing: true }));
+    setIsPushSyncing(true);
 
     try {
       await account.get();
@@ -280,7 +282,7 @@ export function useFlashcardSync() {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Cloud push failed';
-      setSyncState((prev) => ({ ...prev, isSyncing: false }));
+      setIsPushSyncing(false);
       return { success: false, error: message };
     }
   }, [dedupeByLatest, mergeData, storage, syncState.isOnline, updatePendingCount]);
@@ -293,7 +295,7 @@ export function useFlashcardSync() {
       };
     }
 
-    setSyncState((prev) => ({ ...prev, isSyncing: true }));
+    setIsPullSyncing(true);
 
     try {
       await account.get();
@@ -308,7 +310,7 @@ export function useFlashcardSync() {
 
       const snapshot = await pullSnapshotFromCloud(localCards, localCategories);
       if (!snapshot) {
-        setSyncState((prev) => ({ ...prev, isSyncing: false }));
+        setIsPullSyncing(false);
         return {
           success: false,
           error: 'No cloud backup found for this account.',
@@ -369,9 +371,9 @@ export function useFlashcardSync() {
 
       await updatePendingCount();
 
+      setIsPullSyncing(false);
       setSyncState((prev) => ({
         ...prev,
-        isSyncing: false,
         lastSyncedAt: Date.now(),
       }));
 
@@ -382,7 +384,7 @@ export function useFlashcardSync() {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Cloud pull failed';
-      setSyncState((prev) => ({ ...prev, isSyncing: false }));
+      setIsPullSyncing(false);
       return { success: false, error: message };
     }
   }, [dedupeByLatest, mergeData, storage, syncState.isOnline, updatePendingCount]);
@@ -407,6 +409,8 @@ export function useFlashcardSync() {
 
   return {
     syncState,
+    isPushSyncing,
+    isPullSyncing,
     syncToCloud,
     pullFromCloud,
     fullSync,

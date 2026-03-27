@@ -437,6 +437,8 @@ export function useFlashcards() {
     refreshFromStorage,
     // Sync state and operations
     syncState: sync.syncState,
+    isPushSyncing: sync.isPushSyncing,
+    isPullSyncing: sync.isPullSyncing,
     syncToCloud: sync.syncToCloud,
     pullFromCloud: sync.pullFromCloud,
     fullSync: sync.fullSync,

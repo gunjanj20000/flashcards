@@ -35,6 +35,8 @@ interface SettingsPageProps {
   onCreateLocalBackup: () => Promise<unknown>;
   onRestoreLocalBackup: (backup: unknown) => Promise<{ categories: number; cards: number }>;
   syncState: { lastSyncedAt: number | null; isSyncing: boolean; isOnline: boolean; pendingChanges: number };
+  isPushSyncing?: boolean;
+  isPullSyncing?: boolean;
   onSyncToCloud: () => Promise<{ success: boolean; error?: string; syncedCards?: number; syncedCategories?: number }>;
   onPullFromCloud: () => Promise<{ success: boolean; error?: string; syncedCards?: number; syncedCategories?: number }>;
   onRefreshFromStorage: () => Promise<void>;
@@ -60,6 +62,8 @@ export function SettingsPage({
   onCreateLocalBackup,
   onRestoreLocalBackup,
   syncState,
+  isPushSyncing = false,
+  isPullSyncing = false,
   onSyncToCloud,
   onPullFromCloud,
   onRefreshFromStorage,
@@ -1046,18 +1050,18 @@ export function SettingsPage({
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         onClick={handlePushToCloud}
-                        disabled={isManualSyncBusy || syncState.isSyncing}
+                        disabled={isManualSyncBusy || isPushSyncing}
                         className="h-11 rounded-xl font-semibold"
                       >
-                        {isManualSyncBusy || syncState.isSyncing ? 'Syncing...' : 'Push To Cloud'}
+                        {isPushSyncing ? 'Syncing...' : 'Push To Cloud'}
                       </Button>
                       <Button
                         onClick={handlePullFromCloud}
-                        disabled={isManualSyncBusy || syncState.isSyncing}
+                        disabled={isManualSyncBusy || isPullSyncing}
                         variant="outline"
                         className="h-11 rounded-xl font-semibold"
                       >
-                        {isManualSyncBusy || syncState.isSyncing ? 'Syncing...' : 'Pull From Cloud'}
+                        {isPullSyncing ? 'Syncing...' : 'Pull From Cloud'}
                       </Button>
                     </div>
 
