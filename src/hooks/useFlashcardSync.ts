@@ -206,7 +206,7 @@ export function useFlashcardSync() {
         cards: cleanedCloudCards,
         categories: cleanedCloudCategories,
         settings,
-      }, pushBlobCache);
+      }, pushBlobCache, deletedEntityIds.cardIds);
 
       // After successful push, pull the updated cards from cloud to get proper storage URLs
       const updatedCloudSnapshot = await pullSnapshotFromCloud(cards, categories);
