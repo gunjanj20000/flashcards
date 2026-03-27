@@ -366,10 +366,10 @@ export async function pushSnapshotToCloud(
         }
 
         // Handle imageUrl and imageFileId
-        let imageFileId: string | null = null;
+        let imageFileId: string | null = card.imageFileId ?? null;
         let imageUrl = 'image'; // Default placeholder
 
-        if (card.imageFileId) {
+        if (imageFileId) {
           console.log('Skipping upload - already exists');
         }
         
@@ -380,7 +380,7 @@ export async function pushSnapshotToCloud(
         console.log(`  card in cache: ${blobCache?.has(card.id) ?? false}`);
         
         // ONLY rely on blob cache (correct approach)
-        if (!card.imageFileId && blobCache?.has(card.id)) {
+        if (!imageFileId && blobCache?.has(card.id)) {
           console.log(`  ✅ Uploading image for card "${card.word}"`);
           imageFileId = await uploadImageToStorage(card.id, blobCache);
           console.log(`Image upload result for "${card.word}": fileId=${imageFileId}`);
@@ -392,7 +392,7 @@ export async function pushSnapshotToCloud(
           imageUrl = getImageUrlFromStorage(imageFileId, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
           console.log(`Using storage preview URL for "${card.word}"`);
         } else if (card.imageUrl) {
-          imageUrl = card.imageUrl;
+          imageUrl = fixImageUrlForUserAccess(card.imageUrl, APPWRITE_PROJECT_ID, APPWRITE_ENDPOINT);
           console.log(`Using local image URL fallback for "${card.word}"`);
         } else {
           console.log(`Using placeholder imageUrl for "${card.word}"`);
