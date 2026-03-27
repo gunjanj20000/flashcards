@@ -62,7 +62,31 @@ const createOrUpdateDocument = async (
 
 // Helper function to get image URL from storage
 const getImageUrlFromStorage = (fileId: string, projectId: string, endpointUrl: string): string => {
-  return `${endpointUrl}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${projectId}&width=200&height=200&gravity=center`;
+  try {
+    return storage.getFilePreview(BUCKET_ID, fileId, 200, 200).toString();
+  } catch {
+    // Fallback for SDK/runtime issues
+    return `${endpointUrl}/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=${projectId}&width=200&height=200`;
+  }
+};
+
+// Helper function to fix old admin URLs to work with regular user sessions
+const fixImageUrlForUserAccess = (url: string, projectId: string, endpointUrl: string): string => {
+  if (!url) return url;
+  
+  // If URL contains /view?...mode=admin, convert to /preview
+  if (url.includes('/view?') && url.includes('mode=admin')) {
+    console.log('[fixImageUrlForUserAccess] Converting admin URL to preview URL:', url.substring(0, 50));
+    
+    // Extract the file ID from the URL
+    const fileIdMatch = url.match(/\/files\/([^/]+)\//);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      return getImageUrlFromStorage(fileId, projectId, endpointUrl);
+    }
+  }
+  
+  return url;
 };
 
 const normalizeCards = (raw: unknown, projectId?: string, endpointUrl?: string): Flashcard[] => {
@@ -73,6 +97,13 @@ const normalizeCards = (raw: unknown, projectId?: string, endpointUrl?: string):
     .map((item) => {
       // Reconstruct imageUrl from fileId if present
       let imageUrl = String(item.imageUrl ?? '');
+      
+      // Fix old admin URLs to work with user sessions
+      if (imageUrl && projectId && endpointUrl) {
+        imageUrl = fixImageUrlForUserAccess(imageUrl, projectId, endpointUrl);
+      }
+      
+      // If still no URL but has fileId, generate the correct preview URL
       if (!imageUrl && item.imageFileId && projectId && endpointUrl) {
         imageUrl = getImageUrlFromStorage(String(item.imageFileId), projectId, endpointUrl);
       }
@@ -153,7 +184,6 @@ const parseSnapshot = (raw: unknown): CloudSnapshot | null => {
   };
 };
 
-// Helper function to upload image to storage and get file ID
 // Helper to compress image blob to fit within Appwrite limits
 const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise<Blob> => {
   // If already small enough, return as is
@@ -162,7 +192,7 @@ const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise
     return blob;
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(blob);
     reader.onload = (event) => {
@@ -182,9 +212,9 @@ const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise
             resolve(blob);
             return;
           }
-          
+
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          
+
           canvas.toBlob((compressedBlob) => {
             if (!compressedBlob) {
               console.warn('[compressImage] Failed to create blob from canvas');
@@ -193,7 +223,7 @@ const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise
             }
 
             console.log(`[compressImage] Attempt: quality=${quality.toFixed(2)}, scale=${scale.toFixed(2)}, size=${compressedBlob.size} bytes`);
-            
+
             if (compressedBlob.size <= maxSizeBytes) {
               console.log(`[compressImage] Success! Compressed to ${compressedBlob.size} bytes (${Math.round(compressedBlob.size / 1024)}KB)`);
               resolve(compressedBlob);
@@ -204,13 +234,13 @@ const compressImage = async (blob: Blob, maxSizeBytes: number = 500000): Promise
             if (quality > 0.1) {
               quality -= 0.1;
               tryCompress();
-            } 
+            }
             // Then reduce dimensions
             else if (scale > 0.3) {
               scale -= 0.1;
               quality = 0.8;
               tryCompress();
-            } 
+            }
             // Give up and use what we have
             else {
               console.warn(`[compressImage] Could not compress below ${maxSizeBytes} bytes, using best effort (${compressedBlob.size} bytes)`);
