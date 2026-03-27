@@ -96,7 +96,16 @@ const normalizeCards = (raw: unknown, projectId?: string, endpointUrl?: string):
     .filter((item): item is Record<string, unknown> => isRecord(item))
     .map((item) => {
       // Reconstruct imageUrl from fileId if present
-      let imageUrl = String(item.imageUrl ?? '');
+      const rawImageUrl = String(item.imageUrl ?? '').trim();
+      const imageFileId = item.imageFileId ? String(item.imageFileId) : undefined;
+      const isPlaceholderImageUrl =
+        !rawImageUrl ||
+        rawImageUrl === 'image' ||
+        rawImageUrl === 'pending' ||
+        rawImageUrl === 'null' ||
+        rawImageUrl === 'undefined';
+
+      let imageUrl = isPlaceholderImageUrl ? '' : rawImageUrl;
       
       // Fix old admin URLs to work with user sessions
       if (imageUrl && projectId && endpointUrl) {
@@ -104,15 +113,15 @@ const normalizeCards = (raw: unknown, projectId?: string, endpointUrl?: string):
       }
       
       // If still no URL but has fileId, generate the correct preview URL
-      if (!imageUrl && item.imageFileId && projectId && endpointUrl) {
-        imageUrl = getImageUrlFromStorage(String(item.imageFileId), projectId, endpointUrl);
+      if (!imageUrl && imageFileId && projectId && endpointUrl) {
+        imageUrl = getImageUrlFromStorage(imageFileId, projectId, endpointUrl);
       }
       
       return {
         id: String(item.id ?? ''),
         word: String(item.word ?? ''),
         imageUrl,
-        imageFileId: item.imageFileId ? String(item.imageFileId) : undefined,
+        imageFileId,
         categoryId: String(item.categoryId ?? ''),
         createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
         updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now(),

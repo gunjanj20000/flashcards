@@ -216,7 +216,13 @@ export function useFlashcardSync() {
       const cloudImageUrls = new Map<string, string>();
       const cloudImageFileIds = new Map<string, string>();
       cloudCardsWithStorageUrls.forEach((card) => {
-        if (card.imageUrl && !card.imageUrl.startsWith('data:')) {
+        const hasValidRemoteImageUrl =
+          !!card.imageUrl &&
+          card.imageUrl !== 'image' &&
+          card.imageUrl !== 'pending' &&
+          !card.imageUrl.startsWith('data:');
+
+        if (hasValidRemoteImageUrl) {
           cloudImageUrls.set(card.id, card.imageUrl);
         }
         if (card.imageFileId) {
