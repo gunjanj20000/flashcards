@@ -504,35 +504,38 @@ export function SettingsPage({
         ))}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className={`flex-1 min-h-0 ${(activeTab === 'settings' || activeTab === 'account') ? '' : 'overflow-y-auto'}`}>
 
       {/* Cards Tab */}
       {activeTab === 'cards' && (
         <div className="h-full flex flex-col gap-3 min-h-0">
-          <Button
-            onClick={() => setIsAddingCard(true)}
-            className="w-full h-12 bg-primary text-primary-foreground rounded-2xl font-semibold text-base"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add New Card
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <h2 className="text-lg font-semibold">Cards</h2>
+            <Button
+              onClick={() => setIsAddingCard(true)}
+              className="h-10 px-4 bg-primary text-primary-foreground rounded-xl font-semibold text-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add
+            </Button>
+          </div>
 
           {isAddingCard && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-2xl p-3 card-shadow space-y-3 shrink-0"
+              className="bg-card rounded-xl p-4 card-shadow space-y-3 shrink-0 border border-border"
             >
               <Input
                 placeholder="Word (e.g., Cat)"
                 value={newCardWord}
                 onChange={(e) => setNewCardWord(e.target.value)}
-                className="h-12 rounded-xl text-lg"
+                className="h-10 rounded-lg text-sm"
               />
 
               <div className="flex items-center gap-2">
-                <div className="text-sm text-muted-foreground flex-1">
-                  {newCardImage ? 'Image selected' : 'No image selected'}
+                <div className="text-xs text-muted-foreground flex-1">
+                  {newCardImage ? '✓ Image selected' : 'No image'}
                 </div>
                 <input
                   type="file"
@@ -544,14 +547,15 @@ export function SettingsPage({
                 <Button
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
-                  className="h-12 px-4 rounded-xl"
+                  className="h-9 px-3 rounded-lg"
+                  size="sm"
                 >
-                  <Upload className="w-5 h-5" />
+                  <Upload className="w-4 h-4" />
                 </Button>
               </div>
 
               {newCardImage && (
-                <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400 flex items-center justify-center">
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gradient-to-br from-purple-400 via-pink-400 to-blue-400 flex items-center justify-center">
                   <img src={newCardImage} alt="Preview" className="w-full h-full object-contain" />
                 </div>
               )}
@@ -559,7 +563,7 @@ export function SettingsPage({
               <select
                 value={newCardCategory}
                 onChange={(e) => setNewCardCategory(e.target.value)}
-                className="w-full h-12 rounded-xl border border-input bg-card px-4 text-lg"
+                className="w-full h-10 rounded-lg border border-input bg-card px-3 text-sm"
               >
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -568,20 +572,21 @@ export function SettingsPage({
                 ))}
               </select>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   onClick={handleAddCard}
-                  className="flex-1 h-12 bg-secondary text-secondary-foreground rounded-xl font-semibold"
+                  className="flex-1 h-9 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm"
                 >
-                  <Check className="w-5 h-5 mr-2" />
+                  <Check className="w-4 h-4 mr-1" />
                   Save
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setIsAddingCard(false)}
-                  className="h-12 px-6 rounded-xl"
+                  className="h-9 px-4 rounded-lg"
+                  size="sm"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </motion.div>
@@ -708,38 +713,41 @@ export function SettingsPage({
       {/* Categories Tab */}
       {activeTab === 'categories' && (
         <div className="h-full flex flex-col gap-3 min-h-0">
-          <Button
-            onClick={() => setIsAddingCategory(true)}
-            className="w-full h-12 bg-primary text-primary-foreground rounded-2xl font-semibold text-base"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add New Category
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <h2 className="text-lg font-semibold">Categories</h2>
+            <Button
+              onClick={() => setIsAddingCategory(true)}
+              className="h-10 px-4 bg-primary text-primary-foreground rounded-xl font-semibold text-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add
+            </Button>
+          </div>
 
           {isAddingCategory && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-2xl p-3 card-shadow space-y-3 shrink-0"
+              className="bg-card rounded-xl p-4 card-shadow space-y-3 shrink-0 border border-border"
             >
               <Input
                 placeholder="Category Name"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                className="h-12 rounded-xl text-lg"
+                className="h-10 rounded-lg text-sm"
               />
 
               <div>
-                <Label className="text-sm font-semibold mb-2 block">Icon</Label>
+                <Label className="text-xs font-semibold mb-2 block text-muted-foreground">Select Icon</Label>
                 <div className="flex flex-wrap gap-2">
                   {emojiOptions.map((emoji) => (
                     <button
                       key={emoji}
                       onClick={() => setNewCategoryIcon(emoji)}
-                      className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${
+                      className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
                         newCategoryIcon === emoji
-                          ? 'bg-primary ring-2 ring-primary ring-offset-2'
-                          : 'bg-muted'
+                          ? 'bg-primary ring-2 ring-primary ring-offset-1'
+                          : 'bg-muted hover:bg-muted/80'
                       }`}
                     >
                       {emoji}
@@ -749,36 +757,37 @@ export function SettingsPage({
               </div>
 
               <div>
-                <Label className="text-sm font-semibold mb-2 block">Color</Label>
+                <Label className="text-xs font-semibold mb-2 block text-muted-foreground">Select Color</Label>
                 <div className="flex flex-wrap gap-2">
                   {colorOptions.map((color) => (
                     <button
                       key={color}
                       onClick={() => setNewCategoryColor(color)}
-                      className={`w-12 h-12 rounded-xl bg-${color} transition-all ${
+                      className={`w-10 h-10 rounded-lg bg-${color} transition-all ${
                         newCategoryColor === color
-                          ? 'ring-2 ring-foreground ring-offset-2'
-                          : ''
+                          ? 'ring-2 ring-foreground ring-offset-1'
+                          : 'hover:opacity-80'
                       }`}
                     />
                   ))}
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   onClick={handleAddCategory}
-                  className="flex-1 h-12 bg-secondary text-secondary-foreground rounded-xl font-semibold"
+                  className="flex-1 h-9 bg-secondary text-secondary-foreground rounded-lg font-semibold text-sm"
                 >
-                  <Check className="w-5 h-5 mr-2" />
+                  <Check className="w-4 h-4 mr-1" />
                   Save
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setIsAddingCategory(false)}
-                  className="h-12 px-6 rounded-xl"
+                  className="h-9 px-4 rounded-lg"
+                  size="sm"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </motion.div>
